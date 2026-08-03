@@ -20,6 +20,7 @@
     categoryFilter: $('categoryFilter'), statusFilter: $('statusFilter'), modeBadge: $('modeBadge'),
     newEntryBtn: $('newEntryBtn'), entryDialog: $('entryDialog'), entryForm: $('entryForm'),
     deleteEntryBtn: $('deleteEntryBtn'), dialogTitle: $('dialogTitle'), loginDialog: $('loginDialog'),
+    searchResults: $('searchResults'),
     loginForm: $('loginForm'), loginBtn: $('loginBtn'), logoutBtn: $('logoutBtn'), loginError: $('loginError')
   };
 
@@ -67,14 +68,71 @@
   }
   function persistLocal() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.entries)); }
 
+  function normalizeSearch(value) {
+    return String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '');
+  }
+
   function filteredEntries() {
-    const q = els.searchInput.value.trim().toLowerCase();
+    const rawQuery = els.searchInput.value.trim().toLowerCase();
+    const compactQuery = normalizeSearch(rawQuery);
     const category = els.categoryFilter.value;
     const status = els.statusFilter.value;
     return state.entries.filter(e => {
-      const text = [e.project_number,e.project_title,e.customer,e.location,e.responsible,e.team,e.notes].join(' ').toLowerCase();
-      return (!q || text.includes(q)) && (!category || e.category === category) && (!status || e.status === status);
+      const fields = [e.project_number,e.project_title,e.customer,e.location,e.responsible,e.team,e.notes];
+      const text = fields.join(' ').toLowerCase();
+      const compactText = normalizeSearch(fields.join(' '));
+      const matchesSearch = !rawQuery || text.includes(rawQuery) || (compactQuery && compactText.includes(compactQuery));
+      return matchesSearch && (!category || e.category === category) && (!status || e.status === status);
     });
+  }
+
+  function renderSearchResults(entries) {
+    const hasQuery = Boolean(els.searchInput.value.trim() || els.categoryFilter.value || els.statusFilter.value);
+    els.searchResults.classList.toggle('hidden', !hasQuery);
+    if (!hasQuery) {
+      els.searchResults.innerHTML = '';
+      return;
+    }
+
+    if (!entries.length) {
+      els.searchResults.innerHTML = '<strong>Keine passenden Termine gefunden.</strong><span>Prüfe Projektnummer, Schreibweise oder Filter.</span>';
+      return;
+    }
+
+    const sorted = [...entries].sort((a, b) => a.start_date.localeCompare(b.start_date));
+    els.searchResults.innerHTML = `<div class="search-results-head"><strong>${sorted.length} Treffer</strong><span>Zum Termin springen oder Details öffnen</span></div><div class="search-result-list"></div>`;
+    const list = els.searchResults.querySelector('.search-result-list');
+    sorted.slice(0, 50).forEach(entry => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'search-result-item';
+      row.innerHTML = `<span class="search-result-date">${entry.start_date === entry.end_date ? entry.start_date : `${entry.start_date} – ${entry.end_date}`}</span><strong>${escapeHtml(entry.project_number)} – ${escapeHtml(entry.project_title)}</strong><span>${escapeHtml(entry.category)}${entry.customer ? ` · ${escapeHtml(entry.customer)}` : ''}${entry.location ? ` · ${escapeHtml(entry.location)}` : ''}</span>`;
+      row.addEventListener('click', () => jumpToEntry(entry));
+      list.appendChild(row);
+    });
+  }
+
+  function jumpToDate(dateValue, openEntry = null) {
+    const date = parseDate(dateValue);
+    state.year = date.getFullYear();
+    ensureYearOption(state.year);
+    els.yearSelect.value = state.year;
+    render();
+    requestAnimationFrame(() => {
+      const target = document.querySelector(`[data-date="${dateValue}"]`) || document.getElementById(`month-${date.getMonth() + 1}`);
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target?.classList.add('jump-highlight');
+      setTimeout(() => target?.classList.remove('jump-highlight'), 1800);
+      if (openEntry) setTimeout(() => openEntryDialog(openEntry), 450);
+    });
+  }
+
+  function jumpToEntry(entry) {
+    jumpToDate(entry.start_date, entry);
   }
 
   function render() {
@@ -82,9 +140,11 @@
     const template = $('monthTemplate');
     const entries = filteredEntries();
     const today = new Date();
+    renderSearchResults(entries);
 
     MONTHS.forEach((monthName, monthIndex) => {
       const card = template.content.firstElementChild.cloneNode(true);
+      card.id = `month-${monthIndex + 1}`;
       card.querySelector('h2').textContent = monthName;
       const monthEntries = entries.filter(e => parseDate(e.start_date).getFullYear() <= state.year && parseDate(e.end_date).getFullYear() >= state.year && (parseDate(e.start_date).getMonth() <= monthIndex || parseDate(e.start_date).getFullYear() < state.year) && (parseDate(e.end_date).getMonth() >= monthIndex || parseDate(e.end_date).getFullYear() > state.year));
       card.querySelector('.month-count').textContent = `${monthEntries.length} Termin${monthEntries.length === 1 ? '' : 'e'}`;
@@ -99,6 +159,7 @@
         date.setDate(gridStart.getDate() + i);
         const cell = document.createElement('div');
         cell.className = 'day';
+        cell.dataset.date = iso(date);
         if (date.getMonth() !== monthIndex) cell.classList.add('outside');
         if (iso(date) === iso(today)) cell.classList.add('today');
         cell.innerHTML = `<span class="day-number">${date.getDate()}</span><div class="events"></div>`;
@@ -253,6 +314,17 @@
     if (client) await client.auth.signOut();
   }
 
+  function ensureYearOption(year) {
+    if ([...els.yearSelect.options].some(option => Number(option.value) === year)) return;
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    els.yearSelect.appendChild(option);
+    [...els.yearSelect.options]
+      .sort((a, b) => Number(a.value) - Number(b.value))
+      .forEach(option => els.yearSelect.appendChild(option));
+  }
+
   function buildYearSelect() {
     const current = new Date().getFullYear();
     for (let y = current - 5; y <= current + 8; y++) {
@@ -264,9 +336,9 @@
   }
 
   function bindEvents() {
-    $('prevYearBtn').onclick = () => { state.year--; els.yearSelect.value = state.year; render(); };
-    $('nextYearBtn').onclick = () => { state.year++; els.yearSelect.value = state.year; render(); };
-    $('todayBtn').onclick = () => { state.year = new Date().getFullYear(); els.yearSelect.value = state.year; render(); };
+    $('prevYearBtn').onclick = () => { state.year--; ensureYearOption(state.year); els.yearSelect.value = state.year; render(); };
+    $('nextYearBtn').onclick = () => { state.year++; ensureYearOption(state.year); els.yearSelect.value = state.year; render(); };
+    $('todayBtn').onclick = () => jumpToDate(iso(new Date()));
     els.yearSelect.onchange = () => { state.year = Number(els.yearSelect.value); render(); };
     [els.searchInput, els.categoryFilter, els.statusFilter].forEach(el => el.addEventListener('input', render));
     els.newEntryBtn.onclick = () => openEntryDialog();

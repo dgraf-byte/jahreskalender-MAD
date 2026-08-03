@@ -6,6 +6,8 @@ Einbettbare Jahreskalender-App für Montagen, Lieferungen, Inbetriebnahmen, Abna
 
 - Jahresansicht mit allen 12 Monaten
 - Projektnummer, Projekttitel, Kategorie, Status, Zeitraum, Kunde, Ort, Verantwortlicher, Team und Notizen
+- Verbesserte Suche: findet Projektnummern auch ohne Bindestriche/Leerzeichen und zeigt eine Trefferliste
+- Schaltfläche „Heute“ springt direkt zum aktuellen Kalendertag
 - Suche und Filter
 - Mehrtägige Termine
 - Rollen: Admin, Editor, Viewer
