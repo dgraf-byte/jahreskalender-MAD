@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=1.2.2">
 </head>
 <body>
   <header class="app-header">
@@ -48,7 +48,7 @@
     </aside>
 
     <section class="content">
-      <div id="planningControls" class="planning-controls">
+      <div class="sticky-planner-head">
       <section class="dashboard" aria-label="Übersicht">
         <article><span>Heute</span><strong id="todayCount">0</strong><small>Termine</small></article>
         <article><span>Diese Woche</span><strong id="weekCount">0</strong><small>Termine</small></article>
@@ -74,17 +74,17 @@
         </div>
       </section>
 
+      <section id="searchResults" class="search-results hidden" aria-live="polite"></section>
+
       <section class="legend" aria-label="Legende">
         <span><i class="dot cat-montage"></i>Montage</span><span><i class="dot cat-lieferung"></i>Lieferung</span><span><i class="dot cat-inbetriebnahme"></i>Inbetriebnahme</span><span><i class="dot cat-abnahme"></i>Abnahme</span><span><i class="dot cat-service"></i>Service</span><span><i class="dot cat-konstruktion"></i>Konstruktion</span><span><i class="dot cat-produktion"></i>Produktion</span>
       </section>
+
       </div>
 
-      <section id="searchResults" class="search-results hidden" aria-live="polite"></section>
       <section id="calendar" class="year-grid" aria-live="polite"></section>
     </section>
   </main>
-
-  <div id="eventTooltip" class="event-tooltip hidden" role="tooltip"></div>
 
   <dialog id="entryDialog" class="dialog">
     <form id="entryForm">
@@ -145,7 +145,7 @@
   <template id="monthTemplate"><article class="month-card"><div class="month-head"><h2></h2><span class="month-count"></span></div><div class="weekdays"><span class="kw-head">KW</span><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div><div class="days"></div></article></template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="config.js?v=1.2.2"></script>
+  <script src="app.js?v=1.2.2"></script>
 </body>
 </html>
