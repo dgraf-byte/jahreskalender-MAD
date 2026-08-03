@@ -1,31 +1,22 @@
-# Maderegger Planer – Meilenstein 1.1
+# Maderegger Firmenkalender 2.0.0
 
-Enthalten:
-- Jahreskalender mit Kalenderwochen (KW)
-- Heute-Button und Markierung des aktuellen Tages
-- Suche mit Trefferliste und direktem Sprung zum Termin
-- besonders kurze Termineingabe: Projekt, Terminart, Von, Bis, Priorität
-- optionale Angaben eingeklappt unter „Weitere Angaben“
-- Supabase-Konfiguration bereits eingetragen
+Schlanker Firmenkalender ohne Projektverwaltung und ohne zusätzliches Login.
 
-## Installation
-1. `supabase.sql` im SQL Editor des Supabase-Projekts ausführen.
-2. Benutzer unter Authentication anlegen.
-3. In `profiles` die Rolle auf `admin`, `editor` oder `viewer` setzen.
-4. Alle Dateien direkt in das GitHub-Repository hochladen.
-5. GitHub Pages auf Branch `main` und Ordner `/root` aktivieren.
+## GitHub
+Diese Dateien ersetzen:
+- index.html
+- styles.css
+- app.js
+- config.js
 
-Wichtig: Niemals einen Secret- oder Service-Role-Key in GitHub speichern. Der eingetragene Publishable Key ist für das Frontend vorgesehen.
+## Supabase
+Einmalig `supabase_update_001_company_calendar.sql` im SQL Editor ausführen.
 
-## Version 1.2
+## Bedienung
+- Doppelklick auf Tag: Termin anlegen
+- Klick auf Termin: bearbeiten/löschen
+- Pflichtfelder: Terminart, Termin, Von, Bis
+- optional: Projektnummer, Info
 
-- Kopfbereich mit Dashboard, Filtern und Legende bleibt am Desktop beim Scrollen sichtbar.
-- Linke Navigation bleibt am Desktop fixiert.
-- Kalenderwochen werden links in jedem Monat angezeigt.
-- Der sichtbare Monat wird in der Navigation automatisch markiert.
-- Suchfeld wurde verbreitert.
-- Projekteinträge zeigen einen Statuspunkt.
-- Termine zeigen beim Darüberfahren eine kompakte Detailvorschau.
-- Auf Tablet und Smartphone wird die Fixierung des großen Planungsbereichs deaktiviert, damit ausreichend Kalenderfläche sichtbar bleibt.
-
-Für dieses Update sind keine Änderungen an der Supabase-Datenbank erforderlich.
+## Sicherheit
+Die GitHub-Pages-Adresse ist technisch öffentlich erreichbar. Das SQL erlaubt deshalb mit dem Publishable Key anonymes Lesen und Bearbeiten. Der Passwortschutz der eingebetteten Webador-Seite schützt nicht die direkte GitHub-Pages-URL.
