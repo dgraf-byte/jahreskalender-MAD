@@ -48,6 +48,7 @@
     </aside>
 
     <section class="content">
+      <div id="planningControls" class="planning-controls">
       <section class="dashboard" aria-label="Übersicht">
         <article><span>Heute</span><strong id="todayCount">0</strong><small>Termine</small></article>
         <article><span>Diese Woche</span><strong id="weekCount">0</strong><small>Termine</small></article>
@@ -73,32 +74,39 @@
         </div>
       </section>
 
-      <section id="searchResults" class="search-results hidden" aria-live="polite"></section>
-
       <section class="legend" aria-label="Legende">
         <span><i class="dot cat-montage"></i>Montage</span><span><i class="dot cat-lieferung"></i>Lieferung</span><span><i class="dot cat-inbetriebnahme"></i>Inbetriebnahme</span><span><i class="dot cat-abnahme"></i>Abnahme</span><span><i class="dot cat-service"></i>Service</span><span><i class="dot cat-konstruktion"></i>Konstruktion</span><span><i class="dot cat-produktion"></i>Produktion</span>
       </section>
+      </div>
 
+      <section id="searchResults" class="search-results hidden" aria-live="polite"></section>
       <section id="calendar" class="year-grid" aria-live="polite"></section>
     </section>
   </main>
+
+  <div id="eventTooltip" class="event-tooltip hidden" role="tooltip"></div>
 
   <dialog id="entryDialog" class="dialog">
     <form id="entryForm">
       <div class="dialog-head"><div><p class="eyebrow">Terminplanung</p><h2 id="entryDialogTitle">Termin eintragen</h2></div><button id="closeEntryDialog" class="icon-btn" type="button">×</button></div>
       <input id="entryId" type="hidden">
-      <div class="form-grid">
+      <div class="form-grid compact-form">
         <label class="span-2"><span>Projekt *</span><select id="entryProjectId" required></select></label>
-        <label><span>Kategorie *</span><select id="entryCategory" required><option>Montage</option><option>Lieferung</option><option>Inbetriebnahme</option><option>Abnahme</option><option>Service</option><option>Konstruktion</option><option>Produktion</option><option>Sonstiges</option></select></label>
-        <label><span>Status</span><select id="entryStatus"><option>Geplant</option><option>Bestätigt</option><option>Erledigt</option><option>Verschoben</option></select></label>
-        <label><span>Beginn *</span><input id="entryStart" type="date" required></label>
-        <label><span>Ende *</span><input id="entryEnd" type="date" required></label>
-        <label><span>Verantwortlich</span><input id="entryResponsible" maxlength="120"></label>
-        <label><span>Montageteam / Spedition</span><input id="entryTeam" maxlength="120"></label>
-        <label><span>Uhrzeit / Hinweis</span><input id="entryTimeNote" maxlength="120" placeholder="z. B. Abfahrt 06:00 Uhr"></label>
+        <label><span>Terminart *</span><select id="entryCategory" required><option>Montage</option><option>Lieferung</option><option>Inbetriebnahme</option><option>Abnahme</option><option>Service</option><option>Konstruktion</option><option>Produktion</option><option>Sonstiges</option></select></label>
         <label><span>Priorität</span><select id="entryPriority"><option>Normal</option><option>Hoch</option><option>Niedrig</option></select></label>
-        <label class="span-2"><span>Weitere Informationen</span><textarea id="entryNotes" rows="4" maxlength="2000"></textarea></label>
+        <label><span>Von *</span><input id="entryStart" type="date" required></label>
+        <label><span>Bis *</span><input id="entryEnd" type="date" required></label>
       </div>
+      <details class="advanced-fields">
+        <summary>Weitere Angaben</summary>
+        <div class="form-grid">
+          <label><span>Status</span><select id="entryStatus"><option>Geplant</option><option>Bestätigt</option><option>Erledigt</option><option>Verschoben</option></select></label>
+          <label><span>Verantwortlich</span><input id="entryResponsible" maxlength="120"></label>
+          <label><span>Montageteam / Spedition</span><input id="entryTeam" maxlength="120"></label>
+          <label><span>Uhrzeit / Hinweis</span><input id="entryTimeNote" maxlength="120" placeholder="z. B. Abfahrt 06:00 Uhr"></label>
+          <label class="span-2"><span>Weitere Informationen</span><textarea id="entryNotes" rows="4" maxlength="2000"></textarea></label>
+        </div>
+      </details>
       <div class="dialog-actions"><button id="deleteEntryBtn" class="btn btn-danger hidden" type="button">Termin löschen</button><span class="spacer"></span><button id="cancelEntryBtn" class="btn btn-secondary" type="button">Abbrechen</button><button class="btn btn-primary" type="submit">Speichern</button></div>
     </form>
   </dialog>
@@ -134,7 +142,7 @@
     </form>
   </dialog>
 
-  <template id="monthTemplate"><article class="month-card"><div class="month-head"><h2></h2><span class="month-count"></span></div><div class="weekdays"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div><div class="days"></div></article></template>
+  <template id="monthTemplate"><article class="month-card"><div class="month-head"><h2></h2><span class="month-count"></span></div><div class="weekdays"><span class="kw-head">KW</span><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div><div class="days"></div></article></template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>

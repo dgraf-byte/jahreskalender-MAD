@@ -1,41 +1,31 @@
-# Maderegger Planer V2 – Meilenstein 1
+# Maderegger Planer – Meilenstein 1.1
 
-## Enthalten
-- Jahreskalender mit 12 Monaten
-- Heute-Sprung und Monatsnavigation
-- getrennte Projektstammdaten und Termine
-- Suche nach Projektnummer, Titel, Kunde, Ort und Termintext
-- Dashboard für heute, Woche, Montagen und Lieferungen
-- Login mit Supabase
-- Rollen Admin, Editor, Viewer
-- Echtzeitaktualisierung bei Änderungen
-- responsive Darstellung
+Enthalten:
+- Jahreskalender mit Kalenderwochen (KW)
+- Heute-Button und Markierung des aktuellen Tages
+- Suche mit Trefferliste und direktem Sprung zum Termin
+- besonders kurze Termineingabe: Projekt, Terminart, Von, Bis, Priorität
+- optionale Angaben eingeklappt unter „Weitere Angaben“
+- Supabase-Konfiguration bereits eingetragen
 
-## Einrichtung
-1. In Supabase links **SQL Editor** öffnen.
-2. **New query** wählen.
-3. Inhalt von `supabase.sql` einfügen und **Run** drücken.
-4. In Supabase unter **Project Settings / API Keys** den **Publishable key** kopieren.
-5. In `config.js` `HIER_DEN_PUBLISHABLE_KEY_EINFUEGEN` ersetzen.
-6. Dateien in das GitHub-Repository hochladen.
-7. GitHub Pages aktivieren: Settings → Pages → Deploy from branch → main / root.
+## Installation
+1. `supabase.sql` im SQL Editor des Supabase-Projekts ausführen.
+2. Benutzer unter Authentication anlegen.
+3. In `profiles` die Rolle auf `admin`, `editor` oder `viewer` setzen.
+4. Alle Dateien direkt in das GitHub-Repository hochladen.
+5. GitHub Pages auf Branch `main` und Ordner `/root` aktivieren.
 
-## Ersten Benutzer anlegen
-1. Supabase → Authentication → Users → Add user.
-2. Benutzer mit E-Mail und Passwort anlegen.
-3. Supabase → Table Editor → profiles.
-4. Beim eigenen Benutzer `role` auf `admin` ändern.
+Wichtig: Niemals einen Secret- oder Service-Role-Key in GitHub speichern. Der eingetragene Publishable Key ist für das Frontend vorgesehen.
 
-## Rollen
-- `admin`: Projekte und Termine bearbeiten/löschen, Rollen verwalten
-- `editor`: Projekte und Termine anlegen/bearbeiten; Termine löschen
-- `viewer`: nur lesen
+## Version 1.2
 
-## Sicherheit
-In GitHub darf nur der `sb_publishable_...` Schlüssel stehen. Niemals einen `sb_secret_...` Schlüssel oder den alten `service_role` Schlüssel eintragen.
+- Kopfbereich mit Dashboard, Filtern und Legende bleibt am Desktop beim Scrollen sichtbar.
+- Linke Navigation bleibt am Desktop fixiert.
+- Kalenderwochen werden links in jedem Monat angezeigt.
+- Der sichtbare Monat wird in der Navigation automatisch markiert.
+- Suchfeld wurde verbreitert.
+- Projekteinträge zeigen einen Statuspunkt.
+- Termine zeigen beim Darüberfahren eine kompakte Detailvorschau.
+- Auf Tablet und Smartphone wird die Fixierung des großen Planungsbereichs deaktiviert, damit ausreichend Kalenderfläche sichtbar bleibt.
 
-## Webador
-Nach Veröffentlichung über GitHub Pages:
-```html
-<iframe src="DEINE-GITHUB-PAGES-URL" width="100%" height="1200" style="border:0;border-radius:12px" loading="lazy"></iframe>
-```
+Für dieses Update sind keine Änderungen an der Supabase-Datenbank erforderlich.
