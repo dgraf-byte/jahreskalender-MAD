@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#282b2d" />
+  <title>Montage- & Lieferkalender</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Maderegger Fördertechnik</p>
+      <h1>Montage- & Lieferkalender</h1>
+    </div>
+    <div class="header-actions">
+      <span id="modeBadge" class="badge badge-warning">Demomodus</span>
+      <button id="loginBtn" class="btn btn-secondary" type="button">Anmelden</button>
+      <button id="logoutBtn" class="btn btn-secondary hidden" type="button">Abmelden</button>
+      <button id="newEntryBtn" class="btn btn-primary" type="button">+ Termin eintragen</button>
+    </div>
+  </header>
+
+  <main class="app-shell">
+    <section class="toolbar" aria-label="Kalendersteuerung">
+      <div class="year-controls">
+        <button id="prevYearBtn" class="icon-btn" type="button" aria-label="Vorheriges Jahr">‹</button>
+        <select id="yearSelect" aria-label="Jahr auswählen"></select>
+        <button id="nextYearBtn" class="icon-btn" type="button" aria-label="Nächstes Jahr">›</button>
+        <button id="todayBtn" class="btn btn-secondary" type="button">Aktuelles Jahr</button>
+      </div>
+
+      <div class="filters">
+        <label>
+          <span>Suche</span>
+          <input id="searchInput" type="search" placeholder="Projektnummer, Titel, Kunde …" />
+        </label>
+        <label>
+          <span>Kategorie</span>
+          <select id="categoryFilter">
+            <option value="">Alle</option>
+            <option value="Montage">Montage</option>
+            <option value="Lieferung">Lieferung</option>
+            <option value="Inbetriebnahme">Inbetriebnahme</option>
+            <option value="Abnahme">Abnahme</option>
+            <option value="Service">Service</option>
+            <option value="Sonstiges">Sonstiges</option>
+          </select>
+        </label>
+        <label>
+          <span>Status</span>
+          <select id="statusFilter">
+            <option value="">Alle</option>
+            <option value="Geplant">Geplant</option>
+            <option value="Bestätigt">Bestätigt</option>
+            <option value="Erledigt">Erledigt</option>
+            <option value="Verschoben">Verschoben</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="legend" aria-label="Legende">
+      <span><i class="dot cat-montage"></i>Montage</span>
+      <span><i class="dot cat-lieferung"></i>Lieferung</span>
+      <span><i class="dot cat-inbetriebnahme"></i>Inbetriebnahme</span>
+      <span><i class="dot cat-abnahme"></i>Abnahme</span>
+      <span><i class="dot cat-service"></i>Service</span>
+      <span><i class="dot cat-sonstiges"></i>Sonstiges</span>
+    </section>
+
+    <section id="calendar" class="year-grid" aria-live="polite"></section>
+  </main>
+
+  <dialog id="entryDialog" class="dialog">
+    <form id="entryForm" method="dialog">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">Kalendereintrag</p>
+          <h2 id="dialogTitle">Termin eintragen</h2>
+        </div>
+        <button id="closeDialogBtn" class="icon-btn" type="button" aria-label="Schließen">×</button>
+      </div>
+
+      <input id="entryId" type="hidden" />
+      <div class="form-grid">
+        <label>
+          <span>Projektnummer *</span>
+          <input id="projectNumber" required maxlength="40" placeholder="z. B. 26-1042" />
+        </label>
+        <label>
+          <span>Projekttitel *</span>
+          <input id="projectTitle" required maxlength="120" placeholder="z. B. Montage Förderstrecke" />
+        </label>
+        <label>
+          <span>Kategorie *</span>
+          <select id="category" required>
+            <option value="Montage">Montage</option>
+            <option value="Lieferung">Lieferung</option>
+            <option value="Inbetriebnahme">Inbetriebnahme</option>
+            <option value="Abnahme">Abnahme</option>
+            <option value="Service">Service</option>
+            <option value="Sonstiges">Sonstiges</option>
+          </select>
+        </label>
+        <label>
+          <span>Status</span>
+          <select id="status">
+            <option value="Geplant">Geplant</option>
+            <option value="Bestätigt">Bestätigt</option>
+            <option value="Erledigt">Erledigt</option>
+            <option value="Verschoben">Verschoben</option>
+          </select>
+        </label>
+        <label>
+          <span>Beginn *</span>
+          <input id="startDate" type="date" required />
+        </label>
+        <label>
+          <span>Ende *</span>
+          <input id="endDate" type="date" required />
+        </label>
+        <label>
+          <span>Kunde</span>
+          <input id="customer" maxlength="120" />
+        </label>
+        <label>
+          <span>Ort</span>
+          <input id="location" maxlength="120" />
+        </label>
+        <label>
+          <span>Verantwortlich</span>
+          <input id="responsible" maxlength="120" />
+        </label>
+        <label>
+          <span>Montageteam / Spedition</span>
+          <input id="team" maxlength="120" />
+        </label>
+        <label class="span-2">
+          <span>Weitere Informationen</span>
+          <textarea id="notes" rows="4" maxlength="1000" placeholder="Besonderheiten, Ansprechpartner, Uhrzeit, benötigte Hilfsmittel …"></textarea>
+        </label>
+      </div>
+
+      <div class="dialog-actions">
+        <button id="deleteEntryBtn" class="btn btn-danger hidden" type="button">Eintrag löschen</button>
+        <span class="dialog-spacer"></span>
+        <button id="cancelBtn" class="btn btn-secondary" type="button">Abbrechen</button>
+        <button class="btn btn-primary" type="submit">Speichern</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="loginDialog" class="dialog dialog-small">
+    <form id="loginForm" method="dialog">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">Zugriff</p>
+          <h2>Anmelden</h2>
+        </div>
+        <button id="closeLoginBtn" class="icon-btn" type="button" aria-label="Schließen">×</button>
+      </div>
+      <p class="hint">Die Anmeldung funktioniert nach dem Einrichten von Supabase. Im Demomodus werden Daten nur im aktuellen Browser gespeichert.</p>
+      <label>
+        <span>E-Mail-Adresse</span>
+        <input id="loginEmail" type="email" required placeholder="name@firma.at" />
+      </label>
+      <label>
+        <span>Passwort</span>
+        <input id="loginPassword" type="password" required minlength="6" />
+      </label>
+      <p id="loginError" class="error-text"></p>
+      <div class="dialog-actions">
+        <span class="dialog-spacer"></span>
+        <button id="cancelLoginBtn" class="btn btn-secondary" type="button">Abbrechen</button>
+        <button class="btn btn-primary" type="submit">Anmelden</button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="monthTemplate">
+    <article class="month-card">
+      <div class="month-head">
+        <h2></h2>
+        <span class="month-count"></span>
+      </div>
+      <div class="weekdays" aria-hidden="true">
+        <span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span>
+      </div>
+      <div class="days"></div>
+    </article>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
