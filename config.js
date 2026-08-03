@@ -1,5 +1,4 @@
-// Ohne Zugangsdaten startet die App automatisch im lokalen Demomodus.
-window.APP_CONFIG = window.APP_CONFIG || {
-  SUPABASE_URL: "",
-  SUPABASE_ANON_KEY: ""
+window.APP_CONFIG = {
+  SUPABASE_URL: "https://jfgagmybcajjevhpiino.supabase.co",
+  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_962MT6WvtUh-vbtU1NNP_A_pbz4enV8"
 };

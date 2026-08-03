@@ -1,58 +1,41 @@
-# Montage- & Lieferkalender
+# Maderegger Planer V2 – Meilenstein 1
 
-Einbettbare Jahreskalender-App für Montagen, Lieferungen, Inbetriebnahmen, Abnahmen und Serviceeinsätze.
+## Enthalten
+- Jahreskalender mit 12 Monaten
+- Heute-Sprung und Monatsnavigation
+- getrennte Projektstammdaten und Termine
+- Suche nach Projektnummer, Titel, Kunde, Ort und Termintext
+- Dashboard für heute, Woche, Montagen und Lieferungen
+- Login mit Supabase
+- Rollen Admin, Editor, Viewer
+- Echtzeitaktualisierung bei Änderungen
+- responsive Darstellung
 
-## Enthaltene Funktionen
+## Einrichtung
+1. In Supabase links **SQL Editor** öffnen.
+2. **New query** wählen.
+3. Inhalt von `supabase.sql` einfügen und **Run** drücken.
+4. In Supabase unter **Project Settings / API Keys** den **Publishable key** kopieren.
+5. In `config.js` `HIER_DEN_PUBLISHABLE_KEY_EINFUEGEN` ersetzen.
+6. Dateien in das GitHub-Repository hochladen.
+7. GitHub Pages aktivieren: Settings → Pages → Deploy from branch → main / root.
 
-- Jahresansicht mit allen 12 Monaten
-- Projektnummer, Projekttitel, Kategorie, Status, Zeitraum, Kunde, Ort, Verantwortlicher, Team und Notizen
-- Verbesserte Suche: findet Projektnummern auch ohne Bindestriche/Leerzeichen und zeigt eine Trefferliste
-- Schaltfläche „Heute“ springt direkt zum aktuellen Kalendertag
-- Suche und Filter
-- Mehrtägige Termine
-- Rollen: Admin, Editor, Viewer
-- Anmeldung über Supabase
-- Lokaler Demomodus ohne Datenbank
-- Responsive Darstellung für PC, Tablet und Smartphone
-- Farbgebung in RAL 6018 / RAL 7021 Anlehnung
+## Ersten Benutzer anlegen
+1. Supabase → Authentication → Users → Add user.
+2. Benutzer mit E-Mail und Passwort anlegen.
+3. Supabase → Table Editor → profiles.
+4. Beim eigenen Benutzer `role` auf `admin` ändern.
 
-## Schnelltest
+## Rollen
+- `admin`: Projekte und Termine bearbeiten/löschen, Rollen verwalten
+- `editor`: Projekte und Termine anlegen/bearbeiten; Termine löschen
+- `viewer`: nur lesen
 
-Die Dateien auf einen Webserver oder GitHub Pages hochladen. Solange `config.js` keine Supabase-Zugangsdaten enthält, läuft die App als lokale Demo. Daten werden dabei nur im Browser gespeichert.
+## Sicherheit
+In GitHub darf nur der `sb_publishable_...` Schlüssel stehen. Niemals einen `sb_secret_...` Schlüssel oder den alten `service_role` Schlüssel eintragen.
 
-## Produktivbetrieb mit Supabase
-
-1. Unter supabase.com ein Projekt anlegen.
-2. Im SQL Editor den gesamten Inhalt aus `supabase.sql` ausführen.
-3. In Supabase unter **Authentication → Users** die Benutzer anlegen.
-4. In der Tabelle `profiles` für jeden Benutzer die Rolle setzen:
-   - `admin`: Benutzer und Kalendereinträge verwalten
-   - `editor`: Kalendereinträge verwalten
-   - `viewer`: nur lesen
-5. `config.example.js` kopieren bzw. in `config.js` die Project URL und den anon/public Key eintragen.
-6. Alle Dateien auf GitHub Pages, Netlify, Cloudflare Pages oder den eigenen Webspace hochladen.
-
-## Einbindung in Webador
-
-Die App muss auf einer öffentlich erreichbaren HTTPS-Adresse liegen. Danach in Webador ein Einbettungs-/HTML-Element verwenden:
-
+## Webador
+Nach Veröffentlichung über GitHub Pages:
 ```html
-<iframe
-  src="https://DEINE-DOMAIN.at/kalender/"
-  style="width:100%;height:1200px;border:0;border-radius:12px;"
-  loading="lazy"
-  allow="clipboard-write">
-</iframe>
+<iframe src="DEINE-GITHUB-PAGES-URL" width="100%" height="1200" style="border:0;border-radius:12px" loading="lazy"></iframe>
 ```
-
-Wichtig: Die Kalenderseite kann technisch öffentlich geladen werden, zeigt im Supabase-Betrieb aber ohne gültige Anmeldung keine geschützten Daten. Die Zugriffsregeln liegen in der Datenbank und nicht nur in der sichtbaren Oberfläche.
-
-## Empfohlene nächste Erweiterungen
-
-- Kalenderwochenansicht
-- Export nach Excel/PDF
-- Outlook-/iCal-Export
-- Benachrichtigung bei neuen oder geänderten Terminen
-- Ressourcenplanung für Montageteams und Fahrzeuge
-- Datei-Anhänge je Projekt
-- Änderungsprotokoll

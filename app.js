@@ -1,363 +1,44 @@
 (() => {
-  'use strict';
-
-  const MONTHS = ['Jänner','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-  const STORAGE_KEY = 'maderegger_calendar_entries_v1';
-  const cfg = window.APP_CONFIG || {};
-  const liveMode = Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
-  const client = liveMode ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
-
-  const state = {
-    year: new Date().getFullYear(),
-    entries: [],
-    user: null,
-    role: liveMode ? 'viewer' : 'admin'
-  };
-
-  const $ = (id) => document.getElementById(id);
-  const els = {
-    calendar: $('calendar'), yearSelect: $('yearSelect'), searchInput: $('searchInput'),
-    categoryFilter: $('categoryFilter'), statusFilter: $('statusFilter'), modeBadge: $('modeBadge'),
-    newEntryBtn: $('newEntryBtn'), entryDialog: $('entryDialog'), entryForm: $('entryForm'),
-    deleteEntryBtn: $('deleteEntryBtn'), dialogTitle: $('dialogTitle'), loginDialog: $('loginDialog'),
-    searchResults: $('searchResults'),
-    loginForm: $('loginForm'), loginBtn: $('loginBtn'), logoutBtn: $('logoutBtn'), loginError: $('loginError')
-  };
-
-  function normalizeClass(value) {
-    return String(value || '').toLowerCase().replaceAll('ä','a').replaceAll('ö','o').replaceAll('ü','u').replace(/[^a-z0-9]+/g, '-');
-  }
-  function iso(date) {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }
-  function parseDate(value) {
-    const [y,m,d] = value.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  }
-  function overlaps(entry, date) {
-    const target = iso(date);
-    return entry.start_date <= target && entry.end_date >= target;
-  }
-  function canEdit() {
-    return !liveMode || ['admin','editor'].includes(state.role);
-  }
-
-  async function loadEntries() {
-    if (!liveMode) {
-      state.entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      if (!state.entries.length) seedDemoEntries();
-      render();
-      return;
-    }
-    const { data, error } = await client.from('calendar_entries').select('*').order('start_date');
-    if (error) return alert(`Kalender konnte nicht geladen werden: ${error.message}`);
-    state.entries = data || [];
-    render();
-  }
-
-  function seedDemoEntries() {
-    const y = state.year;
-    state.entries = [
-      { id: crypto.randomUUID(), project_number:'26-1042', project_title:'Montage Förderstrecke', category:'Montage', status:'Bestätigt', start_date:`${y}-03-16`, end_date:`${y}-03-19`, customer:'Musterkunde GmbH', location:'Linz', responsible:'Projektleitung', team:'Montageteam 1', notes:'Demoeintrag – kann bearbeitet oder gelöscht werden.' },
-      { id: crypto.randomUUID(), project_number:'26-1088', project_title:'Auslieferung Portal-Mix', category:'Lieferung', status:'Geplant', start_date:`${y}-05-08`, end_date:`${y}-05-08`, customer:'Beispielkunde', location:'Salzburg', responsible:'Disposition', team:'Spedition', notes:'' }
-    ];
-    persistLocal();
-  }
-  function persistLocal() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.entries)); }
-
-  function normalizeSearch(value) {
-    return String(value || '')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]/g, '');
-  }
-
-  function filteredEntries() {
-    const rawQuery = els.searchInput.value.trim().toLowerCase();
-    const compactQuery = normalizeSearch(rawQuery);
-    const category = els.categoryFilter.value;
-    const status = els.statusFilter.value;
-    return state.entries.filter(e => {
-      const fields = [e.project_number,e.project_title,e.customer,e.location,e.responsible,e.team,e.notes];
-      const text = fields.join(' ').toLowerCase();
-      const compactText = normalizeSearch(fields.join(' '));
-      const matchesSearch = !rawQuery || text.includes(rawQuery) || (compactQuery && compactText.includes(compactQuery));
-      return matchesSearch && (!category || e.category === category) && (!status || e.status === status);
-    });
-  }
-
-  function renderSearchResults(entries) {
-    const hasQuery = Boolean(els.searchInput.value.trim() || els.categoryFilter.value || els.statusFilter.value);
-    els.searchResults.classList.toggle('hidden', !hasQuery);
-    if (!hasQuery) {
-      els.searchResults.innerHTML = '';
-      return;
-    }
-
-    if (!entries.length) {
-      els.searchResults.innerHTML = '<strong>Keine passenden Termine gefunden.</strong><span>Prüfe Projektnummer, Schreibweise oder Filter.</span>';
-      return;
-    }
-
-    const sorted = [...entries].sort((a, b) => a.start_date.localeCompare(b.start_date));
-    els.searchResults.innerHTML = `<div class="search-results-head"><strong>${sorted.length} Treffer</strong><span>Zum Termin springen oder Details öffnen</span></div><div class="search-result-list"></div>`;
-    const list = els.searchResults.querySelector('.search-result-list');
-    sorted.slice(0, 50).forEach(entry => {
-      const row = document.createElement('button');
-      row.type = 'button';
-      row.className = 'search-result-item';
-      row.innerHTML = `<span class="search-result-date">${entry.start_date === entry.end_date ? entry.start_date : `${entry.start_date} – ${entry.end_date}`}</span><strong>${escapeHtml(entry.project_number)} – ${escapeHtml(entry.project_title)}</strong><span>${escapeHtml(entry.category)}${entry.customer ? ` · ${escapeHtml(entry.customer)}` : ''}${entry.location ? ` · ${escapeHtml(entry.location)}` : ''}</span>`;
-      row.addEventListener('click', () => jumpToEntry(entry));
-      list.appendChild(row);
-    });
-  }
-
-  function jumpToDate(dateValue, openEntry = null) {
-    const date = parseDate(dateValue);
-    state.year = date.getFullYear();
-    ensureYearOption(state.year);
-    els.yearSelect.value = state.year;
-    render();
-    requestAnimationFrame(() => {
-      const target = document.querySelector(`[data-date="${dateValue}"]`) || document.getElementById(`month-${date.getMonth() + 1}`);
-      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      target?.classList.add('jump-highlight');
-      setTimeout(() => target?.classList.remove('jump-highlight'), 1800);
-      if (openEntry) setTimeout(() => openEntryDialog(openEntry), 450);
-    });
-  }
-
-  function jumpToEntry(entry) {
-    jumpToDate(entry.start_date, entry);
-  }
-
-  function render() {
-    els.calendar.innerHTML = '';
-    const template = $('monthTemplate');
-    const entries = filteredEntries();
-    const today = new Date();
-    renderSearchResults(entries);
-
-    MONTHS.forEach((monthName, monthIndex) => {
-      const card = template.content.firstElementChild.cloneNode(true);
-      card.id = `month-${monthIndex + 1}`;
-      card.querySelector('h2').textContent = monthName;
-      const monthEntries = entries.filter(e => parseDate(e.start_date).getFullYear() <= state.year && parseDate(e.end_date).getFullYear() >= state.year && (parseDate(e.start_date).getMonth() <= monthIndex || parseDate(e.start_date).getFullYear() < state.year) && (parseDate(e.end_date).getMonth() >= monthIndex || parseDate(e.end_date).getFullYear() > state.year));
-      card.querySelector('.month-count').textContent = `${monthEntries.length} Termin${monthEntries.length === 1 ? '' : 'e'}`;
-
-      const daysEl = card.querySelector('.days');
-      const first = new Date(state.year, monthIndex, 1);
-      const mondayOffset = (first.getDay() + 6) % 7;
-      const gridStart = new Date(state.year, monthIndex, 1 - mondayOffset);
-
-      for (let i = 0; i < 42; i++) {
-        const date = new Date(gridStart);
-        date.setDate(gridStart.getDate() + i);
-        const cell = document.createElement('div');
-        cell.className = 'day';
-        cell.dataset.date = iso(date);
-        if (date.getMonth() !== monthIndex) cell.classList.add('outside');
-        if (iso(date) === iso(today)) cell.classList.add('today');
-        cell.innerHTML = `<span class="day-number">${date.getDate()}</span><div class="events"></div>`;
-
-        const dayEntries = entries.filter(e => overlaps(e, date));
-        const eventBox = cell.querySelector('.events');
-        dayEntries.slice(0, 3).forEach(e => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = `event cat-${normalizeClass(e.category)} status-${normalizeClass(e.status)}`;
-          btn.title = `${e.project_number} – ${e.project_title}\n${e.category} | ${e.status}${e.customer ? `\n${e.customer}` : ''}${e.location ? `, ${e.location}` : ''}`;
-          btn.innerHTML = `<strong>${escapeHtml(e.project_number)}</strong> ${escapeHtml(e.project_title)}`;
-          btn.addEventListener('click', () => openEntryDialog(e));
-          eventBox.appendChild(btn);
-        });
-        if (dayEntries.length > 3) {
-          const more = document.createElement('div');
-          more.className = 'more';
-          more.textContent = `+${dayEntries.length - 3} weitere`;
-          eventBox.appendChild(more);
-        }
-        cell.addEventListener('dblclick', () => canEdit() && openEntryDialog(null, iso(date)));
-        daysEl.appendChild(cell);
-      }
-      els.calendar.appendChild(card);
-    });
-
-    els.newEntryBtn.disabled = !canEdit();
-    els.newEntryBtn.title = canEdit() ? '' : 'Nur Benutzer mit Rolle Admin oder Editor dürfen Einträge bearbeiten.';
-  }
-
-  function escapeHtml(value) {
-    return String(value || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-  }
-
-  function openEntryDialog(entry = null, selectedDate = null) {
-    if (!entry && !canEdit()) return;
-    els.entryForm.reset();
-    $('entryId').value = entry?.id || '';
-    els.dialogTitle.textContent = entry ? 'Termin bearbeiten' : 'Termin eintragen';
-    els.deleteEntryBtn.classList.toggle('hidden', !entry || !canEdit());
-
-    const defaultDate = selectedDate || iso(new Date());
-    $('projectNumber').value = entry?.project_number || '';
-    $('projectTitle').value = entry?.project_title || '';
-    $('category').value = entry?.category || 'Montage';
-    $('status').value = entry?.status || 'Geplant';
-    $('startDate').value = entry?.start_date || defaultDate;
-    $('endDate').value = entry?.end_date || defaultDate;
-    $('customer').value = entry?.customer || '';
-    $('location').value = entry?.location || '';
-    $('responsible').value = entry?.responsible || '';
-    $('team').value = entry?.team || '';
-    $('notes').value = entry?.notes || '';
-
-    [...els.entryForm.elements].forEach(el => {
-      if (el.tagName === 'BUTTON' || el.type === 'hidden') return;
-      el.disabled = Boolean(entry && !canEdit());
-    });
-    els.entryDialog.showModal();
-  }
-
-  function formPayload() {
-    return {
-      project_number: $('projectNumber').value.trim(),
-      project_title: $('projectTitle').value.trim(),
-      category: $('category').value,
-      status: $('status').value,
-      start_date: $('startDate').value,
-      end_date: $('endDate').value,
-      customer: $('customer').value.trim(),
-      location: $('location').value.trim(),
-      responsible: $('responsible').value.trim(),
-      team: $('team').value.trim(),
-      notes: $('notes').value.trim()
-    };
-  }
-
-  async function saveEntry(event) {
-    event.preventDefault();
-    if (!canEdit()) return;
-    const id = $('entryId').value;
-    const payload = formPayload();
-    if (payload.end_date < payload.start_date) return alert('Das Enddatum darf nicht vor dem Startdatum liegen.');
-
-    if (!liveMode) {
-      if (id) state.entries = state.entries.map(e => e.id === id ? { ...e, ...payload } : e);
-      else state.entries.push({ id: crypto.randomUUID(), ...payload });
-      persistLocal();
-    } else {
-      const action = id
-        ? client.from('calendar_entries').update(payload).eq('id', id)
-        : client.from('calendar_entries').insert(payload);
-      const { error } = await action;
-      if (error) return alert(`Speichern fehlgeschlagen: ${error.message}`);
-    }
-    els.entryDialog.close();
-    await loadEntries();
-  }
-
-  async function deleteEntry() {
-    const id = $('entryId').value;
-    if (!id || !canEdit() || !confirm('Diesen Kalendereintrag wirklich löschen?')) return;
-    if (!liveMode) {
-      state.entries = state.entries.filter(e => e.id !== id);
-      persistLocal();
-    } else {
-      const { error } = await client.from('calendar_entries').delete().eq('id', id);
-      if (error) return alert(`Löschen fehlgeschlagen: ${error.message}`);
-    }
-    els.entryDialog.close();
-    await loadEntries();
-  }
-
-  async function initAuth() {
-    if (!liveMode) {
-      els.modeBadge.textContent = 'Demomodus';
-      els.modeBadge.className = 'badge badge-warning';
-      els.loginBtn.classList.add('hidden');
-      return;
-    }
-    els.modeBadge.textContent = 'Online';
-    els.modeBadge.className = 'badge badge-live';
-    const { data } = await client.auth.getSession();
-    await setSession(data.session);
-    client.auth.onAuthStateChange((_event, session) => setSession(session));
-  }
-
-  async function setSession(session) {
-    state.user = session?.user || null;
-    state.role = 'viewer';
-    if (state.user) {
-      const { data } = await client.from('profiles').select('role').eq('id', state.user.id).single();
-      state.role = data?.role || 'viewer';
-    }
-    els.loginBtn.classList.toggle('hidden', Boolean(state.user));
-    els.logoutBtn.classList.toggle('hidden', !state.user);
-    render();
-  }
-
-  async function login(event) {
-    event.preventDefault();
-    if (!liveMode) return;
-    els.loginError.textContent = '';
-    const { error } = await client.auth.signInWithPassword({ email: $('loginEmail').value, password: $('loginPassword').value });
-    if (error) return els.loginError.textContent = error.message;
-    els.loginDialog.close();
-    await loadEntries();
-  }
-
-  async function logout() {
-    if (client) await client.auth.signOut();
-  }
-
-  function ensureYearOption(year) {
-    if ([...els.yearSelect.options].some(option => Number(option.value) === year)) return;
-    const option = document.createElement('option');
-    option.value = year;
-    option.textContent = year;
-    els.yearSelect.appendChild(option);
-    [...els.yearSelect.options]
-      .sort((a, b) => Number(a.value) - Number(b.value))
-      .forEach(option => els.yearSelect.appendChild(option));
-  }
-
-  function buildYearSelect() {
-    const current = new Date().getFullYear();
-    for (let y = current - 5; y <= current + 8; y++) {
-      const option = document.createElement('option');
-      option.value = y; option.textContent = y;
-      els.yearSelect.appendChild(option);
-    }
-    els.yearSelect.value = state.year;
-  }
-
-  function bindEvents() {
-    $('prevYearBtn').onclick = () => { state.year--; ensureYearOption(state.year); els.yearSelect.value = state.year; render(); };
-    $('nextYearBtn').onclick = () => { state.year++; ensureYearOption(state.year); els.yearSelect.value = state.year; render(); };
-    $('todayBtn').onclick = () => jumpToDate(iso(new Date()));
-    els.yearSelect.onchange = () => { state.year = Number(els.yearSelect.value); render(); };
-    [els.searchInput, els.categoryFilter, els.statusFilter].forEach(el => el.addEventListener('input', render));
-    els.newEntryBtn.onclick = () => openEntryDialog();
-    $('closeDialogBtn').onclick = () => els.entryDialog.close();
-    $('cancelBtn').onclick = () => els.entryDialog.close();
-    els.entryForm.addEventListener('submit', saveEntry);
-    els.deleteEntryBtn.onclick = deleteEntry;
-    els.loginBtn.onclick = () => els.loginDialog.showModal();
-    els.logoutBtn.onclick = logout;
-    $('closeLoginBtn').onclick = () => els.loginDialog.close();
-    $('cancelLoginBtn').onclick = () => els.loginDialog.close();
-    els.loginForm.addEventListener('submit', login);
-  }
-
-  async function init() {
-    buildYearSelect();
-    bindEvents();
-    await initAuth();
-    await loadEntries();
-  }
-  init();
+'use strict';
+const MONTHS=['Jänner','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const cfg=window.APP_CONFIG||{};
+const key=cfg.SUPABASE_PUBLISHABLE_KEY||cfg.SUPABASE_ANON_KEY||'';
+const liveMode=Boolean(cfg.SUPABASE_URL&&key&&!key.includes('HIER_')&&window.supabase);
+const client=liveMode?window.supabase.createClient(cfg.SUPABASE_URL,key):null;
+const state={year:new Date().getFullYear(),projects:[],entries:[],user:null,role:liveMode?'viewer':'admin',channel:null};
+const $=id=>document.getElementById(id);
+const els={calendar:$('calendar'),year:$('yearSelect'),search:$('searchInput'),cat:$('categoryFilter'),status:$('statusFilter'),results:$('searchResults'),projectList:$('projectList'),projectSearch:$('projectSearch'),entryDialog:$('entryDialog'),projectDialog:$('projectDialog'),loginDialog:$('loginDialog'),mode:$('modeBadge'),userBadge:$('userBadge'),loginBtn:$('loginBtn'),logoutBtn:$('logoutBtn')};
+const PROJECT_KEY='mad_planer_projects_v2',ENTRY_KEY='mad_planer_entries_v2';
+function iso(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function parse(v){const [y,m,d]=v.split('-').map(Number);return new Date(y,m-1,d)}
+function esc(v){return String(v||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function norm(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'')}
+function cls(v){return norm(v).replace(/[^a-z0-9]+/g,'-')}
+function canEdit(){return !liveMode||['admin','editor'].includes(state.role)}
+function project(id){return state.projects.find(p=>p.id===id)||{project_number:'?',title:'Unbekanntes Projekt'}}
+function overlap(e,d){const t=iso(d);return e.start_date<=t&&e.end_date>=t}
+function saveLocal(){localStorage.setItem(PROJECT_KEY,JSON.stringify(state.projects));localStorage.setItem(ENTRY_KEY,JSON.stringify(state.entries))}
+function seed(){if(localStorage.getItem(PROJECT_KEY))return;const y=state.year,p1=crypto.randomUUID(),p2=crypto.randomUUID();state.projects=[{id:p1,project_number:'003538',title:'Förderstrecke V2A',customer:'Musterkunde GmbH',location:'Linz',manager:'Projektleitung',contact_name:'',phone:'',status:'Aktiv',project_link:'',notes:''},{id:p2,project_number:'003540',title:'Portal-Mix Anlage',customer:'Beispielkunde',location:'Salzburg',manager:'',contact_name:'',phone:'',status:'In Planung',project_link:'',notes:''}];state.entries=[{id:crypto.randomUUID(),project_id:p1,category:'Montage',status:'Bestätigt',start_date:`${y}-03-16`,end_date:`${y}-03-19`,responsible:'Projektleitung',team:'Montageteam 1',time_note:'',priority:'Normal',notes:'Demotermin'},{id:crypto.randomUUID(),project_id:p2,category:'Lieferung',status:'Geplant',start_date:`${y}-05-08`,end_date:`${y}-05-08`,responsible:'Disposition',team:'Spedition',time_note:'',priority:'Normal',notes:''}];saveLocal()}
+async function load(){if(!liveMode){seed();state.projects=JSON.parse(localStorage.getItem(PROJECT_KEY)||'[]');state.entries=JSON.parse(localStorage.getItem(ENTRY_KEY)||'[]');render();return}if(!state.user){state.projects=[];state.entries=[];render();return}const [{data:p,error:pe},{data:e,error:ee}]=await Promise.all([client.from('projects').select('*').order('project_number'),client.from('planner_entries').select('*').order('start_date')]);if(pe||ee){alert(`Daten konnten nicht geladen werden: ${(pe||ee).message}`);return}state.projects=p||[];state.entries=e||[];render()}
+function filtered(){const q=norm(els.search.value),cat=els.cat.value,status=els.status.value;return state.entries.filter(e=>{const p=project(e.project_id);const hay=norm([p.project_number,p.title,p.customer,p.location,p.manager,e.responsible,e.team,e.time_note,e.notes].join(' '));return(!q||hay.includes(q))&&(!cat||e.category===cat)&&(!status||e.status===status)})}
+function buildYear(){const c=new Date().getFullYear();for(let y=c-5;y<=c+8;y++){const o=new Option(y,y);els.year.add(o)}els.year.value=state.year}
+function ensureYear(y){if(![...els.year.options].some(o=>+o.value===y)){els.year.add(new Option(y,y));[...els.year.options].sort((a,b)=>+a.value-+b.value).forEach(o=>els.year.add(o))}}
+function renderMonthNav(){const box=$('monthNav');box.innerHTML='';$('sidebarYear').textContent=state.year;MONTHS.forEach((m,i)=>{const b=document.createElement('button');b.textContent=m;b.onclick=()=>document.getElementById(`month-${i}`)?.scrollIntoView({behavior:'smooth',block:'start'});box.appendChild(b)})}
+function renderProjects(){const q=norm(els.projectSearch.value);const list=state.projects.filter(p=>!q||norm([p.project_number,p.title,p.customer].join(' ')).includes(q));$('projectCount').textContent=state.projects.length;els.projectList.innerHTML='';list.slice(0,100).forEach(p=>{const b=document.createElement('button');b.className='project-item';b.innerHTML=`<strong>${esc(p.project_number)} – ${esc(p.title)}</strong><span>${esc(p.customer||'Kein Kunde')}${p.status?` · ${esc(p.status)}`:''}</span>`;b.onclick=()=>openProject(p);els.projectList.appendChild(b)});fillProjectSelect()}
+function fillProjectSelect(selected=''){const s=$('entryProjectId');s.innerHTML='<option value="">Projekt auswählen …</option>';state.projects.filter(p=>p.status!=='Storniert').forEach(p=>s.add(new Option(`${p.project_number} – ${p.title}`,p.id)));if(selected)s.value=selected}
+function dashboard(entries){const now=new Date(),today=iso(now),day=(now.getDay()+6)%7,monday=new Date(now);monday.setDate(now.getDate()-day);const sunday=new Date(monday);sunday.setDate(monday.getDate()+6);$('todayCount').textContent=entries.filter(e=>e.start_date<=today&&e.end_date>=today).length;$('weekCount').textContent=entries.filter(e=>e.start_date<=iso(sunday)&&e.end_date>=iso(monday)).length;$('montageCount').textContent=entries.filter(e=>e.category==='Montage'&&parse(e.start_date).getFullYear()<=state.year&&parse(e.end_date).getFullYear()>=state.year).length;$('deliveryCount').textContent=entries.filter(e=>e.category==='Lieferung'&&parse(e.start_date).getFullYear()<=state.year&&parse(e.end_date).getFullYear()>=state.year).length}
+function renderResults(entries){const active=Boolean(els.search.value.trim()||els.cat.value||els.status.value);els.results.classList.toggle('hidden',!active);if(!active){els.results.innerHTML='';return}if(!entries.length){els.results.innerHTML='<strong>Keine passenden Termine gefunden.</strong>';return}const sorted=[...entries].sort((a,b)=>a.start_date.localeCompare(b.start_date));els.results.innerHTML=`<div class="search-results-head"><strong>${sorted.length} Treffer</strong><span>Zum Termin springen</span></div><div class="search-result-list"></div>`;const list=els.results.querySelector('.search-result-list');sorted.slice(0,50).forEach(e=>{const p=project(e.project_id),b=document.createElement('button');b.className='search-result-item';b.innerHTML=`<span>${e.start_date}${e.end_date!==e.start_date?` – ${e.end_date}`:''}</span><strong>${esc(p.project_number)} – ${esc(p.title)}</strong><span>${esc(e.category)}${p.customer?` · ${esc(p.customer)}`:''}</span>`;b.onclick=()=>jump(e.start_date,e);list.appendChild(b)})}
+function render(){renderMonthNav();renderProjects();const entries=filtered();dashboard(state.entries);renderResults(entries);els.calendar.innerHTML='';const today=iso(new Date()),tpl=$('monthTemplate');MONTHS.forEach((name,mi)=>{const card=tpl.content.firstElementChild.cloneNode(true);card.id=`month-${mi}`;card.querySelector('h2').textContent=name;const monthEntries=entries.filter(e=>parse(e.start_date).getFullYear()<=state.year&&parse(e.end_date).getFullYear()>=state.year&&(parse(e.start_date).getMonth()<=mi||parse(e.start_date).getFullYear()<state.year)&&(parse(e.end_date).getMonth()>=mi||parse(e.end_date).getFullYear()>state.year));card.querySelector('.month-count').textContent=`${monthEntries.length} Termin${monthEntries.length===1?'':'e'}`;const days=card.querySelector('.days'),first=new Date(state.year,mi,1),offset=(first.getDay()+6)%7,start=new Date(state.year,mi,1-offset);for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const cell=document.createElement('div');cell.className='day';cell.dataset.date=iso(d);if(d.getMonth()!==mi)cell.classList.add('outside');if(iso(d)===today)cell.classList.add('today');cell.innerHTML=`<span class="day-number">${d.getDate()}</span><div class="events"></div>`;const de=entries.filter(e=>overlap(e,d));de.slice(0,3).forEach(e=>{const p=project(e.project_id),b=document.createElement('button');b.className=`event cat-${cls(e.category)} status-${cls(e.status)} priority-${cls(e.priority)}`;b.innerHTML=`<strong>${esc(p.project_number)}</strong> ${esc(p.title)}`;b.title=`${p.project_number} – ${p.title}\n${e.category} | ${e.status}`;b.onclick=()=>openEntry(e);cell.querySelector('.events').appendChild(b)});if(de.length>3){const m=document.createElement('div');m.className='more';m.textContent=`+${de.length-3} weitere`;cell.querySelector('.events').appendChild(m)}cell.ondblclick=()=>canEdit()&&openEntry(null,iso(d));days.appendChild(cell)}els.calendar.appendChild(card)});$('newEntryBtn').disabled=!canEdit();$('newProjectBtn').disabled=!canEdit()}
+function jump(date,entry=null){const d=parse(date);state.year=d.getFullYear();ensureYear(state.year);els.year.value=state.year;render();requestAnimationFrame(()=>{const t=document.querySelector(`[data-date="${date}"]`);t?.scrollIntoView({behavior:'smooth',block:'center'});t?.classList.add('jump-highlight');setTimeout(()=>t?.classList.remove('jump-highlight'),1800);if(entry)setTimeout(()=>openEntry(entry),350)})}
+function openEntry(e=null,date=null){if(!e&&!canEdit())return;$('entryForm').reset();$('entryId').value=e?.id||'';$('entryDialogTitle').textContent=e?'Termin bearbeiten':'Termin eintragen';fillProjectSelect(e?.project_id||'');$('entryCategory').value=e?.category||'Montage';$('entryStatus').value=e?.status||'Geplant';$('entryStart').value=e?.start_date||date||iso(new Date());$('entryEnd').value=e?.end_date||date||iso(new Date());$('entryResponsible').value=e?.responsible||'';$('entryTeam').value=e?.team||'';$('entryTimeNote').value=e?.time_note||'';$('entryPriority').value=e?.priority||'Normal';$('entryNotes').value=e?.notes||'';$('deleteEntryBtn').classList.toggle('hidden',!e||!canEdit());[...$('entryForm').elements].forEach(x=>{if(x.tagName!=='BUTTON'&&x.type!=='hidden')x.disabled=Boolean(e&&!canEdit())});els.entryDialog.showModal()}
+function openProject(p=null){if(!p&&!canEdit())return;$('projectForm').reset();$('projectId').value=p?.id||'';$('projectDialogTitle').textContent=p?'Projekt bearbeiten':'Projekt anlegen';$('projectNumber').value=p?.project_number||'';$('projectTitle').value=p?.title||'';$('projectCustomer').value=p?.customer||'';$('projectManager').value=p?.manager||'';$('projectLocation').value=p?.location||'';$('projectContact').value=p?.contact_name||'';$('projectPhone').value=p?.phone||'';$('projectStatus').value=p?.status||'Aktiv';$('projectLink').value=p?.project_link||'';$('projectNotes').value=p?.notes||'';$('deleteProjectBtn').classList.toggle('hidden',!p||!canEdit());[...$('projectForm').elements].forEach(x=>{if(x.tagName!=='BUTTON'&&x.type!=='hidden')x.disabled=Boolean(p&&!canEdit())});els.projectDialog.showModal()}
+async function saveProject(ev){ev.preventDefault();if(!canEdit())return;const id=$('projectId').value,payload={project_number:$('projectNumber').value.trim(),title:$('projectTitle').value.trim(),customer:$('projectCustomer').value.trim(),manager:$('projectManager').value.trim(),location:$('projectLocation').value.trim(),contact_name:$('projectContact').value.trim(),phone:$('projectPhone').value.trim(),status:$('projectStatus').value,project_link:$('projectLink').value.trim(),notes:$('projectNotes').value.trim()};if(!liveMode){if(id)state.projects=state.projects.map(p=>p.id===id?{...p,...payload}:p);else state.projects.push({id:crypto.randomUUID(),...payload});saveLocal()}else{const {error}=id?await client.from('projects').update(payload).eq('id',id):await client.from('projects').insert(payload);if(error)return alert(`Projekt konnte nicht gespeichert werden: ${error.message}`)}els.projectDialog.close();await load()}
+async function saveEntry(ev){ev.preventDefault();if(!canEdit())return;const id=$('entryId').value,payload={project_id:$('entryProjectId').value,category:$('entryCategory').value,status:$('entryStatus').value,start_date:$('entryStart').value,end_date:$('entryEnd').value,responsible:$('entryResponsible').value.trim(),team:$('entryTeam').value.trim(),time_note:$('entryTimeNote').value.trim(),priority:$('entryPriority').value,notes:$('entryNotes').value.trim()};if(payload.end_date<payload.start_date)return alert('Das Enddatum darf nicht vor dem Startdatum liegen.');if(!liveMode){if(id)state.entries=state.entries.map(e=>e.id===id?{...e,...payload}:e);else state.entries.push({id:crypto.randomUUID(),...payload});saveLocal()}else{const {error}=id?await client.from('planner_entries').update(payload).eq('id',id):await client.from('planner_entries').insert(payload);if(error)return alert(`Termin konnte nicht gespeichert werden: ${error.message}`)}els.entryDialog.close();await load()}
+async function delEntry(){const id=$('entryId').value;if(!id||!confirm('Termin wirklich löschen?'))return;if(!liveMode){state.entries=state.entries.filter(e=>e.id!==id);saveLocal()}else{const {error}=await client.from('planner_entries').delete().eq('id',id);if(error)return alert(error.message)}els.entryDialog.close();await load()}
+async function delProject(){const id=$('projectId').value;if(!id||!confirm('Projekt und alle zugehörigen Termine wirklich löschen?'))return;if(!liveMode){state.entries=state.entries.filter(e=>e.project_id!==id);state.projects=state.projects.filter(p=>p.id!==id);saveLocal()}else{const {error}=await client.from('projects').delete().eq('id',id);if(error)return alert(error.message)}els.projectDialog.close();await load()}
+async function session(s){state.user=s?.user||null;state.role='viewer';if(state.user){const {data}=await client.from('profiles').select('role,full_name').eq('id',state.user.id).single();state.role=data?.role||'viewer';els.userBadge.textContent=`${data?.full_name||state.user.email} · ${state.role}`;els.userBadge.classList.remove('hidden')}else els.userBadge.classList.add('hidden');els.loginBtn.classList.toggle('hidden',!!state.user);els.logoutBtn.classList.toggle('hidden',!state.user);await load()}
+async function initAuth(){if(!liveMode){els.mode.textContent='Demomodus';els.mode.className='badge badge-warning';els.loginBtn.classList.add('hidden');return}els.mode.textContent='Online';els.mode.className='badge badge-live';const {data}=await client.auth.getSession();await session(data.session);client.auth.onAuthStateChange((_e,s)=>setTimeout(()=>session(s),0));state.channel=client.channel('planner-live').on('postgres_changes',{event:'*',schema:'public',table:'projects'},load).on('postgres_changes',{event:'*',schema:'public',table:'planner_entries'},load).subscribe()}
+async function login(ev){ev.preventDefault();$('loginError').textContent='';const {error}=await client.auth.signInWithPassword({email:$('loginEmail').value,password:$('loginPassword').value});if(error)return $('loginError').textContent=error.message;els.loginDialog.close()}
+function bind(){$('prevYearBtn').onclick=()=>{state.year--;ensureYear(state.year);els.year.value=state.year;render()};$('nextYearBtn').onclick=()=>{state.year++;ensureYear(state.year);els.year.value=state.year;render()};els.year.onchange=()=>{state.year=+els.year.value;render()};$('todayBtn').onclick=()=>jump(iso(new Date()));[els.search,els.cat,els.status].forEach(x=>x.addEventListener('input',render));els.projectSearch.addEventListener('input',renderProjects);$('clearFiltersBtn').onclick=()=>{els.search.value='';els.cat.value='';els.status.value='';render()};$('newEntryBtn').onclick=()=>state.projects.length?openEntry():alert('Lege zuerst ein Projekt an.');$('newProjectBtn').onclick=()=>openProject();$('entryForm').onsubmit=saveEntry;$('projectForm').onsubmit=saveProject;$('deleteEntryBtn').onclick=delEntry;$('deleteProjectBtn').onclick=delProject;$('closeEntryDialog').onclick=$('cancelEntryBtn').onclick=()=>els.entryDialog.close();$('closeProjectDialog').onclick=$('cancelProjectBtn').onclick=()=>els.projectDialog.close();els.loginBtn.onclick=()=>els.loginDialog.showModal();els.logoutBtn.onclick=()=>client.auth.signOut();$('loginForm').onsubmit=login;$('closeLoginDialog').onclick=$('cancelLoginBtn').onclick=()=>els.loginDialog.close()}
+async function init(){buildYear();bind();renderMonthNav();await initAuth();if(!liveMode)await load()}init();
 })();
