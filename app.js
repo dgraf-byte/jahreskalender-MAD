@@ -48,5 +48,19 @@ async function session(s){state.user=s?.user||null;state.role='viewer';if(state.
 async function initAuth(){if(!liveMode){els.mode.textContent='Demomodus';els.mode.className='badge badge-warning';els.loginBtn.classList.add('hidden');return}els.mode.textContent='Online';els.mode.className='badge badge-live';const {data}=await client.auth.getSession();await session(data.session);client.auth.onAuthStateChange((_e,s)=>setTimeout(()=>session(s),0));state.channel=client.channel('planner-live').on('postgres_changes',{event:'*',schema:'public',table:'projects'},load).on('postgres_changes',{event:'*',schema:'public',table:'planner_entries'},load).subscribe()}
 async function login(ev){ev.preventDefault();$('loginError').textContent='';const {error}=await client.auth.signInWithPassword({email:$('loginEmail').value,password:$('loginPassword').value});if(error)return $('loginError').textContent=error.message;els.loginDialog.close()}
 function bind(){$('prevYearBtn').onclick=()=>{state.year--;ensureYear(state.year);els.year.value=state.year;render()};$('nextYearBtn').onclick=()=>{state.year++;ensureYear(state.year);els.year.value=state.year;render()};els.year.onchange=()=>{state.year=+els.year.value;render()};$('todayBtn').onclick=()=>jump(iso(new Date()));[els.search,els.cat,els.status].forEach(x=>x.addEventListener('input',render));els.projectSearch.addEventListener('input',renderProjects);$('clearFiltersBtn').onclick=()=>{els.search.value='';els.cat.value='';els.status.value='';render()};$('newEntryBtn').onclick=()=>state.projects.length?openEntry():alert('Lege zuerst ein Projekt an.');$('newProjectBtn').onclick=()=>openProject();$('entryForm').onsubmit=saveEntry;$('projectForm').onsubmit=saveProject;$('deleteEntryBtn').onclick=delEntry;$('deleteProjectBtn').onclick=delProject;$('closeEntryDialog').onclick=$('cancelEntryBtn').onclick=()=>els.entryDialog.close();$('closeProjectDialog').onclick=$('cancelProjectBtn').onclick=()=>els.projectDialog.close();els.loginBtn.onclick=()=>els.loginDialog.showModal();els.logoutBtn.onclick=()=>client.auth.signOut();$('loginForm').onsubmit=login;$('closeLoginDialog').onclick=$('cancelLoginBtn').onclick=()=>els.loginDialog.close()}
-async function init(){buildYear();bind();renderMonthNav();await initAuth();if(!liveMode)await load()}init();
+async function init(){
+  buildYear();
+  bind();
+  // Kalender sofort darstellen, unabhängig davon, wie schnell Supabase antwortet.
+  render();
+  try{
+    await initAuth();
+    if(!liveMode) await load();
+  }catch(error){
+    console.error('Initialisierung fehlgeschlagen:',error);
+    // Der Kalender bleibt trotzdem sichtbar und bedienbar.
+    els.mode.textContent=liveMode?'Online – Verbindung prüfen':'Demomodus';
+  }
+}
+init();
 })();
