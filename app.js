@@ -1,27 +1,897 @@
-(()=>{'use strict';
-const MONTHS=['Jänner','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-const CATEGORIES=['Montage','Lieferung','Produktion','Inbetriebnahme','Abnahme','Service','Urlaub','Krank','Feiertag','Besprechung','Wartung','Sonstiges'];
-const cfg=window.APP_CONFIG||{},key=cfg.SUPABASE_PUBLISHABLE_KEY||'';
-const live=Boolean(cfg.SUPABASE_URL&&key&&window.supabase),client=live?window.supabase.createClient(cfg.SUPABASE_URL,key):null;
-const state={year:new Date().getFullYear(),entries:[],channel:null,searchHits:[],searchIndex:0};
-const $=id=>document.getElementById(id);
-const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-const parse=v=>{const [y,m,d]=v.split('-').map(Number);return new Date(y,m-1,d)};
-const norm=v=>String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
-const cls=v=>`cat-${norm(v)}`;
-function week(d){const x=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const day=x.getUTCDay()||7;x.setUTCDate(x.getUTCDate()+4-day);const y=new Date(Date.UTC(x.getUTCFullYear(),0,1));return Math.ceil((((x-y)/86400000)+1)/7)}
-function overlap(e,d){const t=iso(d);return e.start_date<=t&&e.end_date>=t}
-function filtered(){const q=norm($('searchInput').value),cat=$('categoryFilter').value;return state.entries.filter(e=>(!q||norm([e.title,e.project_number,e.notes,e.category].join(' ')).includes(q))&&(!cat||e.category===cat))}
-function setup(){CATEGORIES.forEach(c=>{$('categoryFilter').add(new Option(c,c));$('entryCategory').add(new Option(c,c));const s=document.createElement('span');s.innerHTML=`<i class="dot ${cls(c)}"></i>${c}`;$('legend').appendChild(s)});const y=new Date().getFullYear();for(let i=y-5;i<=y+8;i++)$('yearSelect').add(new Option(i,i));$('yearSelect').value=state.year;if(matchMedia('(max-width:760px)').matches)document.querySelector('.legend-details').open=false}
-function monthNav(){const n=$('monthNav');n.innerHTML='';$('sidebarYear').textContent=state.year;MONTHS.forEach((m,i)=>{const b=document.createElement('button');b.textContent=m;b.dataset.month=i;b.onclick=()=>document.getElementById(`month-${i}`)?.scrollIntoView({behavior:'smooth',block:'start'});n.appendChild(b)})}
-function jumpToEntry(entry){const start=parse(entry.start_date);if(start.getFullYear()!==state.year){state.year=start.getFullYear();$('yearSelect').value=state.year;render()}requestAnimationFrame(()=>{const target=document.querySelector(`[data-date="${entry.start_date}"]`)||document.getElementById(`month-${start.getMonth()}`);target?.scrollIntoView({behavior:'smooth',block:'center'});document.querySelectorAll('.search-hit').forEach(el=>el.classList.remove('search-hit'));if(target?.classList.contains('day')){target.classList.add('search-hit');setTimeout(()=>target.classList.remove('search-hit'),2200)}})}
-function updateSearchNavigator(reset=false){const q=$('searchInput').value.trim(),cat=$('categoryFilter').value,box=$('searchNavigator');state.searchHits=filtered().sort((a,b)=>a.start_date.localeCompare(b.start_date));if(reset)state.searchIndex=0;if(state.searchIndex>=state.searchHits.length)state.searchIndex=0;if(!q&&!cat){box.classList.add('hidden');box.innerHTML='';return}box.classList.remove('hidden');if(!state.searchHits.length){box.innerHTML='<span>Keine passenden Termine gefunden.</span>';return}const current=state.searchHits[state.searchIndex];box.innerHTML=`<span><strong>${state.searchIndex+1} / ${state.searchHits.length}</strong> Treffer</span><div><button type="button" id="prevHit" class="mini-btn" aria-label="Vorheriger Treffer">‹</button><button type="button" id="showHit" class="mini-btn text-btn">Zum Treffer</button><button type="button" id="nextHit" class="mini-btn" aria-label="Nächster Treffer">›</button></div>`;$('prevHit').onclick=()=>{state.searchIndex=(state.searchIndex-1+state.searchHits.length)%state.searchHits.length;updateSearchNavigator();jumpToEntry(state.searchHits[state.searchIndex])};$('nextHit').onclick=()=>{state.searchIndex=(state.searchIndex+1)%state.searchHits.length;updateSearchNavigator();jumpToEntry(state.searchHits[state.searchIndex])};$('showHit').onclick=()=>jumpToEntry(current)}
-function render(){monthNav();const es=filtered();updateSearchNavigator();$('calendar').innerHTML='';const tpl=$('monthTemplate'),today=iso(new Date());MONTHS.forEach((name,mi)=>{const card=tpl.content.firstElementChild.cloneNode(true);card.id=`month-${mi}`;card.querySelector('h2').textContent=name;const monthStart=iso(new Date(state.year,mi,1)),monthEnd=iso(new Date(state.year,mi+1,0));const me=es.filter(e=>e.start_date<=monthEnd&&e.end_date>=monthStart);card.querySelector('.month-count').textContent=`${me.length} Termin${me.length===1?'':'e'}`;const days=card.querySelector('.days'),first=new Date(state.year,mi,1),offset=(first.getDay()+6)%7,start=new Date(state.year,mi,1-offset);for(let r=0;r<6;r++){const monday=new Date(start);monday.setDate(start.getDate()+r*7);const kw=document.createElement('div');kw.className='week-number';kw.textContent=week(monday);days.appendChild(kw);for(let c=0;c<7;c++){const d=new Date(start);d.setDate(start.getDate()+r*7+c);const date=iso(d),cell=document.createElement('div');cell.className='day';cell.dataset.date=date;if(d.getMonth()!==mi)cell.classList.add('outside');if(date===today)cell.classList.add('today');cell.innerHTML=`<span class="day-number">${d.getDate()}</span><div class="events"></div>`;const de=es.filter(e=>overlap(e,d));de.slice(0,4).forEach(e=>{const b=document.createElement('button');b.className=`event ${cls(e.category)}`;b.innerHTML=`${e.project_number?`<strong>${e.project_number}</strong>`:''}<span>${e.title}</span>`;b.title=`${e.category}: ${e.title}${e.project_number?'\nProjekt: '+e.project_number:''}${e.notes?'\n'+e.notes:''}`;b.onclick=ev=>{ev.stopPropagation();openEntry(e)};cell.querySelector('.events').appendChild(b)});if(de.length>4){const m=document.createElement('div');m.className='more';m.textContent=`+${de.length-4} weitere`;cell.querySelector('.events').appendChild(m)}cell.ondblclick=()=>openEntry(null,date);days.appendChild(cell)}}$('calendar').appendChild(card)})}
-async function load(){if(!live){state.entries=JSON.parse(localStorage.getItem('mad_company_calendar')||'[]');$('modeBadge').textContent='Lokal';render();return}const {data,error}=await client.from('company_calendar_entries').select('*').order('start_date');if(error){$('modeBadge').textContent='Fehler';console.error(error);alert('Supabase-Tabelle fehlt oder ist nicht freigegeben. Bitte SQL-Update prüfen.');return}state.entries=data||[];$('modeBadge').textContent='Online';render()}
-function openEntry(e=null,date=null){$('entryForm').reset();$('entryId').value=e?.id||'';$('entryDialogTitle').textContent=e?'Termin bearbeiten':'Termin eintragen';$('entryCategory').value=e?.category||'Montage';$('entryTitle').value=e?.title||'';$('entryStart').value=e?.start_date||date||iso(new Date());$('entryEnd').value=e?.end_date||date||iso(new Date());$('entryProjectNumber').value=e?.project_number||'';$('entryNotes').value=e?.notes||'';$('deleteEntryBtn').classList.toggle('hidden',!e);$('entryDialog').showModal()}
-async function save(ev){ev.preventDefault();const id=$('entryId').value,p={category:$('entryCategory').value,title:$('entryTitle').value.trim(),start_date:$('entryStart').value,end_date:$('entryEnd').value,project_number:$('entryProjectNumber').value.trim(),notes:$('entryNotes').value.trim()};if(p.end_date<p.start_date)return alert('Das Enddatum darf nicht vor dem Startdatum liegen.');if(!live){if(id)state.entries=state.entries.map(e=>String(e.id)===String(id)?{...e,...p}:e);else state.entries.push({id:crypto.randomUUID(),...p});localStorage.setItem('mad_company_calendar',JSON.stringify(state.entries));$('entryDialog').close();render();return}const {error}=id?await client.from('company_calendar_entries').update(p).eq('id',id):await client.from('company_calendar_entries').insert(p);if(error)return alert(error.message);$('entryDialog').close();await load()}
-async function del(){const id=$('entryId').value;if(!id||!confirm('Termin wirklich löschen?'))return;if(!live){state.entries=state.entries.filter(e=>String(e.id)!==String(id));localStorage.setItem('mad_company_calendar',JSON.stringify(state.entries));$('entryDialog').close();render();return}const {error}=await client.from('company_calendar_entries').delete().eq('id',id);if(error)return alert(error.message);$('entryDialog').close();await load()}
-function jumpToday(){const d=new Date();state.year=d.getFullYear();$('yearSelect').value=state.year;render();requestAnimationFrame(()=>document.querySelector(`[data-date="${iso(d)}"]`)?.scrollIntoView({behavior:'smooth',block:'center'}))}
-function bind(){$('prevYearBtn').onclick=()=>{state.year--;$('yearSelect').value=state.year;render()};$('nextYearBtn').onclick=()=>{state.year++;$('yearSelect').value=state.year;render()};$('yearSelect').onchange=()=>{state.year=+$('yearSelect').value;render()};$('todayBtn').onclick=jumpToday;$('newEntryBtn').onclick=()=>openEntry();$('searchInput').oninput=()=>{state.searchIndex=0;render();if(state.searchHits.length)jumpToEntry(state.searchHits[0])};$('searchInput').onkeydown=e=>{if(e.key==='Enter'&&state.searchHits.length){e.preventDefault();jumpToEntry(state.searchHits[state.searchIndex])}};$('categoryFilter').onchange=()=>{state.searchIndex=0;render()};$('clearFiltersBtn').onclick=()=>{$('searchInput').value='';$('categoryFilter').value='';state.searchIndex=0;render()};$('entryForm').onsubmit=save;$('deleteEntryBtn').onclick=del;$('closeEntryDialog').onclick=$('cancelEntryBtn').onclick=()=>$('entryDialog').close()}
-async function init(){setup();bind();render();await load();if(live)state.channel=client.channel('company-calendar-live').on('postgres_changes',{event:'*',schema:'public',table:'company_calendar_entries'},load).subscribe()}
-init();})();
+(() => {
+  'use strict';
+
+  const MONTHS = [
+    'Jänner',
+    'Februar',
+    'März',
+    'April',
+    'Mai',
+    'Juni',
+    'Juli',
+    'August',
+    'September',
+    'Oktober',
+    'November',
+    'Dezember'
+  ];
+
+  const CATEGORIES = [
+    'Montage',
+    'Lieferung',
+    'Produktion',
+    'Inbetriebnahme',
+    'Abnahme',
+    'Service',
+    'Urlaub',
+    'Krank',
+    'Feiertag',
+    'Besprechung',
+    'Wartung',
+    'Sonstiges'
+  ];
+
+  const cfg = window.APP_CONFIG || {};
+  const key = cfg.SUPABASE_PUBLISHABLE_KEY || '';
+
+  const live = Boolean(
+    cfg.SUPABASE_URL &&
+    key &&
+    window.supabase
+  );
+
+  const client = live
+    ? window.supabase.createClient(cfg.SUPABASE_URL, key)
+    : null;
+
+  const state = {
+    year: new Date().getFullYear(),
+    entries: [],
+    channel: null,
+    searchHits: [],
+    searchIndex: 0
+  };
+
+  const $ = id => document.getElementById(id);
+
+  const iso = date =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+  const parse = value => {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
+  const norm = value =>
+    String(value || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '');
+
+  const cls = value => `cat-${norm(value)}`;
+
+  function week(date) {
+    const current = new Date(
+      Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate()
+      )
+    );
+
+    const day = current.getUTCDay() || 7;
+
+    current.setUTCDate(
+      current.getUTCDate() + 4 - day
+    );
+
+    const yearStart = new Date(
+      Date.UTC(current.getUTCFullYear(), 0, 1)
+    );
+
+    return Math.ceil(
+      (((current - yearStart) / 86400000) + 1) / 7
+    );
+  }
+
+  function overlap(entry, date) {
+    const currentDate = iso(date);
+
+    return (
+      entry.start_date <= currentDate &&
+      entry.end_date >= currentDate
+    );
+  }
+
+  function filtered() {
+    const query = norm($('searchInput').value);
+    const category = $('categoryFilter').value;
+
+    return state.entries.filter(entry => {
+      const searchableText = norm([
+        entry.title,
+        entry.project_number,
+        entry.notes,
+        entry.category
+      ].join(' '));
+
+      const matchesQuery =
+        !query ||
+        searchableText.includes(query);
+
+      const matchesCategory =
+        !category ||
+        entry.category === category;
+
+      return matchesQuery && matchesCategory;
+    });
+  }
+
+  function setup() {
+    CATEGORIES.forEach(category => {
+      $('categoryFilter').add(
+        new Option(category, category)
+      );
+
+      $('entryCategory').add(
+        new Option(category, category)
+      );
+
+      const legendItem = document.createElement('span');
+
+      legendItem.innerHTML =
+        `<i class="dot ${cls(category)}"></i>${category}`;
+
+      $('legend').appendChild(legendItem);
+    });
+
+    const currentYear = new Date().getFullYear();
+
+    for (
+      let year = currentYear - 5;
+      year <= currentYear + 8;
+      year++
+    ) {
+      $('yearSelect').add(
+        new Option(year, year)
+      );
+    }
+
+    $('yearSelect').value = state.year;
+
+    if (
+      matchMedia('(max-width:760px)').matches
+    ) {
+      const legendDetails =
+        document.querySelector('.legend-details');
+
+      if (legendDetails) {
+        legendDetails.open = false;
+      }
+    }
+  }
+
+  function monthNav() {
+    const navigation = $('monthNav');
+
+    navigation.innerHTML = '';
+    $('sidebarYear').textContent = state.year;
+
+    MONTHS.forEach((month, index) => {
+      const button = document.createElement('button');
+
+      button.textContent = month;
+      button.dataset.month = index;
+
+      button.onclick = () => {
+        document
+          .getElementById(`month-${index}`)
+          ?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+      };
+
+      navigation.appendChild(button);
+    });
+  }
+
+  function jumpToEntry(entry) {
+    const startDate = parse(entry.start_date);
+
+    if (startDate.getFullYear() !== state.year) {
+      state.year = startDate.getFullYear();
+      $('yearSelect').value = state.year;
+      render();
+    }
+
+    requestAnimationFrame(() => {
+      const target =
+        document.querySelector(
+          `[data-date="${entry.start_date}"]`
+        ) ||
+        document.getElementById(
+          `month-${startDate.getMonth()}`
+        );
+
+      target?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+
+      document
+        .querySelectorAll('.search-hit')
+        .forEach(element => {
+          element.classList.remove('search-hit');
+        });
+
+      if (target?.classList.contains('day')) {
+        target.classList.add('search-hit');
+
+        setTimeout(() => {
+          target.classList.remove('search-hit');
+        }, 2200);
+      }
+    });
+  }
+
+  function updateSearchNavigator(reset = false) {
+    const query = $('searchInput').value.trim();
+    const category = $('categoryFilter').value;
+    const box = $('searchNavigator');
+
+    state.searchHits = filtered().sort(
+      (a, b) =>
+        a.start_date.localeCompare(b.start_date)
+    );
+
+    if (reset) {
+      state.searchIndex = 0;
+    }
+
+    if (
+      state.searchIndex >= state.searchHits.length
+    ) {
+      state.searchIndex = 0;
+    }
+
+    if (!query && !category) {
+      box.classList.add('hidden');
+      box.innerHTML = '';
+      return;
+    }
+
+    box.classList.remove('hidden');
+
+    if (!state.searchHits.length) {
+      box.innerHTML =
+        '<span>Keine passenden Termine gefunden.</span>';
+      return;
+    }
+
+    const current =
+      state.searchHits[state.searchIndex];
+
+    box.innerHTML = `
+      <span>
+        <strong>
+          ${state.searchIndex + 1} /
+          ${state.searchHits.length}
+        </strong>
+        Treffer
+      </span>
+
+      <div>
+        <button
+          type="button"
+          id="prevHit"
+          class="mini-btn"
+          aria-label="Vorheriger Treffer"
+        >
+          ‹
+        </button>
+
+        <button
+          type="button"
+          id="showHit"
+          class="mini-btn text-btn"
+        >
+          Zum Treffer
+        </button>
+
+        <button
+          type="button"
+          id="nextHit"
+          class="mini-btn"
+          aria-label="Nächster Treffer"
+        >
+          ›
+        </button>
+      </div>
+    `;
+
+    $('prevHit').onclick = () => {
+      state.searchIndex =
+        (
+          state.searchIndex -
+          1 +
+          state.searchHits.length
+        ) %
+        state.searchHits.length;
+
+      updateSearchNavigator();
+      jumpToEntry(
+        state.searchHits[state.searchIndex]
+      );
+    };
+
+    $('nextHit').onclick = () => {
+      state.searchIndex =
+        (
+          state.searchIndex + 1
+        ) %
+        state.searchHits.length;
+
+      updateSearchNavigator();
+      jumpToEntry(
+        state.searchHits[state.searchIndex]
+      );
+    };
+
+    $('showHit').onclick = () => {
+      jumpToEntry(current);
+    };
+  }
+
+  function render() {
+    monthNav();
+
+    const entries = filtered();
+
+    updateSearchNavigator();
+
+    $('calendar').innerHTML = '';
+
+    const template = $('monthTemplate');
+    const today = iso(new Date());
+
+    MONTHS.forEach((monthName, monthIndex) => {
+      const card =
+        template.content.firstElementChild.cloneNode(true);
+
+      card.id = `month-${monthIndex}`;
+
+      card.querySelector('h2').textContent =
+        monthName;
+
+      const monthStart = iso(
+        new Date(
+          state.year,
+          monthIndex,
+          1
+        )
+      );
+
+      const monthEnd = iso(
+        new Date(
+          state.year,
+          monthIndex + 1,
+          0
+        )
+      );
+
+      const monthEntries = entries.filter(
+        entry =>
+          entry.start_date <= monthEnd &&
+          entry.end_date >= monthStart
+      );
+
+      card.querySelector('.month-count').textContent =
+        `${monthEntries.length} Termin${
+          monthEntries.length === 1 ? '' : 'e'
+        }`;
+
+      const days = card.querySelector('.days');
+
+      const firstDay = new Date(
+        state.year,
+        monthIndex,
+        1
+      );
+
+      const offset =
+        (firstDay.getDay() + 6) % 7;
+
+      const calendarStart = new Date(
+        state.year,
+        monthIndex,
+        1 - offset
+      );
+
+      for (let row = 0; row < 6; row++) {
+        const monday = new Date(calendarStart);
+
+        monday.setDate(
+          calendarStart.getDate() +
+          row * 7
+        );
+
+        const weekNumber =
+          document.createElement('div');
+
+        weekNumber.className = 'week-number';
+        weekNumber.textContent = week(monday);
+
+        days.appendChild(weekNumber);
+
+        for (
+          let column = 0;
+          column < 7;
+          column++
+        ) {
+          const date = new Date(calendarStart);
+
+          date.setDate(
+            calendarStart.getDate() +
+            row * 7 +
+            column
+          );
+
+          const dateString = iso(date);
+
+          const cell =
+            document.createElement('div');
+
+          cell.className = 'day';
+          cell.dataset.date = dateString;
+
+          if (
+            date.getMonth() !== monthIndex
+          ) {
+            cell.classList.add('outside');
+          }
+
+          if (dateString === today) {
+            cell.classList.add('today');
+          }
+
+          cell.innerHTML = `
+            <span class="day-number">
+              ${date.getDate()}
+            </span>
+
+            <div class="events"></div>
+          `;
+
+          const dayEntries = entries.filter(
+            entry => overlap(entry, date)
+          );
+
+          dayEntries
+            .slice(0, 4)
+            .forEach(entry => {
+              const button =
+                document.createElement('button');
+
+              button.className =
+                `event ${cls(entry.category)}`;
+
+              button.innerHTML = `
+                ${
+                  entry.project_number
+                    ? `<strong>${entry.project_number}</strong>`
+                    : ''
+                }
+                <span>${entry.title}</span>
+              `;
+
+              button.title =
+                `${entry.category}: ${entry.title}` +
+                (
+                  entry.project_number
+                    ? `\nProjekt: ${entry.project_number}`
+                    : ''
+                ) +
+                (
+                  entry.notes
+                    ? `\n${entry.notes}`
+                    : ''
+                );
+
+              button.onclick = event => {
+                event.stopPropagation();
+                openEntry(entry);
+              };
+
+              cell
+                .querySelector('.events')
+                .appendChild(button);
+            });
+
+          if (dayEntries.length > 4) {
+            const more =
+              document.createElement('div');
+
+            more.className = 'more';
+            more.textContent =
+              `+${dayEntries.length - 4} weitere`;
+
+            cell
+              .querySelector('.events')
+              .appendChild(more);
+          }
+
+          cell.ondblclick = () => {
+            openEntry(null, dateString);
+          };
+
+          days.appendChild(cell);
+        }
+      }
+
+      $('calendar').appendChild(card);
+    });
+  }
+
+  async function load() {
+    if (!live) {
+      state.entries = JSON.parse(
+        localStorage.getItem(
+          'mad_company_calendar'
+        ) || '[]'
+      );
+
+      $('modeBadge').textContent = 'Lokal';
+
+      render();
+      return;
+    }
+
+    const { data, error } = await client
+      .from('company_calendar_entries')
+      .select('*')
+      .order('start_date');
+
+    if (error) {
+      $('modeBadge').textContent = 'Fehler';
+
+      console.error(error);
+
+      alert(
+        'Supabase-Tabelle fehlt oder ist nicht freigegeben. Bitte SQL-Update prüfen.'
+      );
+
+      return;
+    }
+
+    state.entries = data || [];
+    $('modeBadge').textContent = 'Online';
+
+    render();
+  }
+
+  function openEntry(entry = null, date = null) {
+    $('entryForm').reset();
+
+    $('entryId').value =
+      entry?.id || '';
+
+    $('entryDialogTitle').textContent =
+      entry
+        ? 'Termin bearbeiten'
+        : 'Termin eintragen';
+
+    $('entryCategory').value =
+      entry?.category || 'Montage';
+
+    $('entryTitle').value =
+      entry?.title || '';
+
+    const startDate =
+      entry?.start_date ||
+      date ||
+      iso(new Date());
+
+    const endDate =
+      entry?.end_date ||
+      date ||
+      startDate;
+
+    $('entryStart').value = startDate;
+    $('entryEnd').value = endDate;
+
+    // Das Enddatum darf nicht vor dem Startdatum liegen.
+    $('entryEnd').min = startDate;
+
+    $('entryProjectNumber').value =
+      entry?.project_number || '';
+
+    $('entryNotes').value =
+      entry?.notes || '';
+
+    $('deleteEntryBtn').classList.toggle(
+      'hidden',
+      !entry
+    );
+
+    $('entryDialog').showModal();
+  }
+
+  async function save(event) {
+    event.preventDefault();
+
+    const id = $('entryId').value;
+
+    const payload = {
+      category:
+        $('entryCategory').value,
+
+      title:
+        $('entryTitle').value.trim(),
+
+      start_date:
+        $('entryStart').value,
+
+      end_date:
+        $('entryEnd').value,
+
+      project_number:
+        $('entryProjectNumber').value.trim(),
+
+      notes:
+        $('entryNotes').value.trim()
+    };
+
+    if (
+      payload.end_date <
+      payload.start_date
+    ) {
+      alert(
+        'Das Enddatum darf nicht vor dem Startdatum liegen.'
+      );
+
+      return;
+    }
+
+    if (!live) {
+      if (id) {
+        state.entries =
+          state.entries.map(entry =>
+            String(entry.id) === String(id)
+              ? {
+                  ...entry,
+                  ...payload
+                }
+              : entry
+          );
+      } else {
+        state.entries.push({
+          id: crypto.randomUUID(),
+          ...payload
+        });
+      }
+
+      localStorage.setItem(
+        'mad_company_calendar',
+        JSON.stringify(state.entries)
+      );
+
+      $('entryDialog').close();
+
+      render();
+      return;
+    }
+
+    const { error } = id
+      ? await client
+          .from('company_calendar_entries')
+          .update(payload)
+          .eq('id', id)
+      : await client
+          .from('company_calendar_entries')
+          .insert(payload);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    $('entryDialog').close();
+
+    await load();
+  }
+
+  async function del() {
+    const id = $('entryId').value;
+
+    if (
+      !id ||
+      !confirm('Termin wirklich löschen?')
+    ) {
+      return;
+    }
+
+    if (!live) {
+      state.entries =
+        state.entries.filter(
+          entry =>
+            String(entry.id) !== String(id)
+        );
+
+      localStorage.setItem(
+        'mad_company_calendar',
+        JSON.stringify(state.entries)
+      );
+
+      $('entryDialog').close();
+
+      render();
+      return;
+    }
+
+    const { error } = await client
+      .from('company_calendar_entries')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    $('entryDialog').close();
+
+    await load();
+  }
+
+  function jumpToday() {
+    const date = new Date();
+
+    state.year = date.getFullYear();
+    $('yearSelect').value = state.year;
+
+    render();
+
+    requestAnimationFrame(() => {
+      document
+        .querySelector(
+          `[data-date="${iso(date)}"]`
+        )
+        ?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+    });
+  }
+
+  function bind() {
+    $('prevYearBtn').onclick = () => {
+      state.year--;
+      $('yearSelect').value = state.year;
+      render();
+    };
+
+    $('nextYearBtn').onclick = () => {
+      state.year++;
+      $('yearSelect').value = state.year;
+      render();
+    };
+
+    $('yearSelect').onchange = () => {
+      state.year =
+        +$('yearSelect').value;
+
+      render();
+    };
+
+    $('todayBtn').onclick = jumpToday;
+
+    $('newEntryBtn').onclick = () => {
+      openEntry();
+    };
+
+    $('searchInput').oninput = () => {
+      state.searchIndex = 0;
+
+      render();
+
+      if (state.searchHits.length) {
+        jumpToEntry(
+          state.searchHits[0]
+        );
+      }
+    };
+
+    $('searchInput').onkeydown = event => {
+      if (
+        event.key === 'Enter' &&
+        state.searchHits.length
+      ) {
+        event.preventDefault();
+
+        jumpToEntry(
+          state.searchHits[
+            state.searchIndex
+          ]
+        );
+      }
+    };
+
+    $('categoryFilter').onchange = () => {
+      state.searchIndex = 0;
+      render();
+    };
+
+    $('clearFiltersBtn').onclick = () => {
+      $('searchInput').value = '';
+      $('categoryFilter').value = '';
+
+      state.searchIndex = 0;
+
+      render();
+    };
+
+    // Sobald das Von-Datum geändert wird,
+    // wird das Bis-Datum mindestens auf dasselbe Datum gesetzt.
+    $('entryStart').addEventListener(
+      'change',
+      () => {
+        const startDate =
+          $('entryStart').value;
+
+        const endDate =
+          $('entryEnd');
+
+        if (!startDate) {
+          endDate.removeAttribute('min');
+          return;
+        }
+
+        endDate.min = startDate;
+
+        if (
+          !endDate.value ||
+          endDate.value < startDate
+        ) {
+          endDate.value = startDate;
+        }
+      }
+    );
+
+    $('entryForm').onsubmit = save;
+
+    $('deleteEntryBtn').onclick = del;
+
+    $('closeEntryDialog').onclick =
+      $('cancelEntryBtn').onclick =
+        () => {
+          $('entryDialog').close();
+        };
+  }
+
+  async function init() {
+    setup();
+    bind();
+    render();
+
+    await load();
+
+    if (live) {
+      state.channel = client
+        .channel('company-calendar-live')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'company_calendar_entries'
+          },
+          load
+        )
+        .subscribe();
+    }
+  }
+
+  init();
+})();
