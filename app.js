@@ -49,7 +49,11 @@
     entries: [],
     channel: null,
     searchHits: [],
-    searchIndex: 0
+    searchIndex: 0,
+
+    // Beim ersten vollständigen Rendern zum heutigen Tag springen.
+    scrollToTodayOnNextRender: true,
+    smoothTodayScroll: false
   };
 
   const $ = id => document.getElementById(id);
@@ -340,6 +344,43 @@
     };
   }
 
+  function scrollToTodayAfterRender() {
+    if (!state.scrollToTodayOnNextRender) {
+      return;
+    }
+
+    const today = new Date();
+
+    // Nur scrollen, wenn das aktuell dargestellte Jahr
+    // auch das laufende Jahr ist.
+    if (state.year !== today.getFullYear()) {
+      state.scrollToTodayOnNextRender = false;
+      return;
+    }
+
+    const todayString = iso(today);
+    const smooth = state.smoothTodayScroll;
+
+    // Flag sofort zurücksetzen, damit spätere Render-Vorgänge
+    // nicht wieder automatisch zum heutigen Tag springen.
+    state.scrollToTodayOnNextRender = false;
+    state.smoothTodayScroll = false;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const target = document.querySelector(
+          `[data-date="${todayString}"]`
+        );
+
+        target?.scrollIntoView({
+          behavior: smooth ? 'smooth' : 'auto',
+          block: 'center',
+          inline: 'nearest'
+        });
+      });
+    });
+  }
+
   function render() {
     monthNav();
 
@@ -527,6 +568,11 @@
 
       $('calendar').appendChild(card);
     });
+
+    // Erst nachdem alle zwölf Monate vollständig aufgebaut wurden,
+    // wird beim ersten Laden beziehungsweise nach Klick auf „Heute“
+    // zum aktuellen Tag gescrollt.
+    scrollToTodayAfterRender();
   }
 
   async function load() {
@@ -557,6 +603,8 @@
         'Supabase-Tabelle fehlt oder ist nicht freigegeben. Bitte SQL-Update prüfen.'
       );
 
+      // Kalender auch bei einem Ladefehler anzeigen.
+      render();
       return;
     }
 
@@ -596,7 +644,7 @@
     $('entryStart').value = startDate;
     $('entryEnd').value = endDate;
 
-    // Das Enddatum darf nicht vor dem Startdatum liegen.
+    // Das Bis-Datum darf nicht vor dem Von-Datum liegen.
     $('entryEnd').min = startDate;
 
     $('entryProjectNumber').value =
@@ -738,35 +786,35 @@
   }
 
   function jumpToday(smooth = true) {
-    const date = new Date();
+    const today = new Date();
 
-    state.year = date.getFullYear();
+    state.year = today.getFullYear();
     $('yearSelect').value = state.year;
 
-    render();
+    state.scrollToTodayOnNextRender = true;
+    state.smoothTodayScroll = smooth;
 
-    requestAnimationFrame(() => {
-      document
-        .querySelector(
-          `[data-date="${iso(date)}"]`
-        )
-        ?.scrollIntoView({
-          behavior: smooth ? 'smooth' : 'auto',
-          block: 'center'
-        });
-    });
+    render();
   }
 
   function bind() {
     $('prevYearBtn').onclick = () => {
       state.year--;
       $('yearSelect').value = state.year;
+
+      // Bei manueller Jahresnavigation nicht automatisch
+      // zum heutigen Tag zurückspringen.
+      state.scrollToTodayOnNextRender = false;
+
       render();
     };
 
     $('nextYearBtn').onclick = () => {
       state.year++;
       $('yearSelect').value = state.year;
+
+      state.scrollToTodayOnNextRender = false;
+
       render();
     };
 
@@ -774,10 +822,12 @@
       state.year =
         +$('yearSelect').value;
 
+      state.scrollToTodayOnNextRender = false;
+
       render();
     };
 
-    // Der Heute-Button scrollt weich zum heutigen Tag.
+    // Der Heute-Button scrollt weich zum aktuellen Tag.
     $('todayBtn').onclick = () => {
       jumpToday(true);
     };
@@ -788,6 +838,10 @@
 
     $('searchInput').oninput = () => {
       state.searchIndex = 0;
+
+      // Suche darf nicht durch den automatischen Heute-Sprung
+      // überschrieben werden.
+      state.scrollToTodayOnNextRender = false;
 
       render();
 
@@ -815,6 +869,8 @@
 
     $('categoryFilter').onchange = () => {
       state.searchIndex = 0;
+      state.scrollToTodayOnNextRender = false;
+
       render();
     };
 
@@ -823,12 +879,13 @@
       $('categoryFilter').value = '';
 
       state.searchIndex = 0;
+      state.scrollToTodayOnNextRender = false;
 
       render();
     };
 
-    // Wird das Von-Datum geändert, darf das Bis-Datum
-    // nicht vor dem neuen Startdatum liegen.
+    // Beim Ändern des Von-Datums wird das Bis-Datum
+    // mindestens auf dasselbe Datum gesetzt.
     $('entryStart').addEventListener(
       'change',
       () => {
@@ -868,13 +925,11 @@
   async function init() {
     setup();
     bind();
-    render();
 
+    // load() lädt die Daten und führt danach render() aus.
+    // Der automatische Heute-Sprung erfolgt dabei direkt
+    // am Ende von render().
     await load();
-
-    // Beim Öffnen der App sofort und ohne Scrollanimation
-    // zum heutigen Tag springen.
-    jumpToday(false);
 
     if (live) {
       state.channel = client
