@@ -160,9 +160,7 @@
 
     $('yearSelect').value = state.year;
 
-    if (
-      matchMedia('(max-width:760px)').matches
-    ) {
+    if (matchMedia('(max-width:760px)').matches) {
       const legendDetails =
         document.querySelector('.legend-details');
 
@@ -250,9 +248,7 @@
       state.searchIndex = 0;
     }
 
-    if (
-      state.searchIndex >= state.searchHits.length
-    ) {
+    if (state.searchIndex >= state.searchHits.length) {
       state.searchIndex = 0;
     }
 
@@ -317,10 +313,10 @@
           state.searchIndex -
           1 +
           state.searchHits.length
-        ) %
-        state.searchHits.length;
+        ) % state.searchHits.length;
 
       updateSearchNavigator();
+
       jumpToEntry(
         state.searchHits[state.searchIndex]
       );
@@ -330,10 +326,10 @@
       state.searchIndex =
         (
           state.searchIndex + 1
-        ) %
-        state.searchHits.length;
+        ) % state.searchHits.length;
 
       updateSearchNavigator();
+
       jumpToEntry(
         state.searchHits[state.searchIndex]
       );
@@ -446,9 +442,7 @@
           cell.className = 'day';
           cell.dataset.date = dateString;
 
-          if (
-            date.getMonth() !== monthIndex
-          ) {
+          if (date.getMonth() !== monthIndex) {
             cell.classList.add('outside');
           }
 
@@ -483,6 +477,7 @@
                     ? `<strong>${entry.project_number}</strong>`
                     : ''
                 }
+
                 <span>${entry.title}</span>
               `;
 
@@ -643,10 +638,7 @@
         $('entryNotes').value.trim()
     };
 
-    if (
-      payload.end_date <
-      payload.start_date
-    ) {
+    if (payload.end_date < payload.start_date) {
       alert(
         'Das Enddatum darf nicht vor dem Startdatum liegen.'
       );
@@ -745,7 +737,7 @@
     await load();
   }
 
-  function jumpToday() {
+  function jumpToday(smooth = true) {
     const date = new Date();
 
     state.year = date.getFullYear();
@@ -759,7 +751,7 @@
           `[data-date="${iso(date)}"]`
         )
         ?.scrollIntoView({
-          behavior: 'smooth',
+          behavior: smooth ? 'smooth' : 'auto',
           block: 'center'
         });
     });
@@ -785,7 +777,10 @@
       render();
     };
 
-    $('todayBtn').onclick = jumpToday;
+    // Der Heute-Button scrollt weich zum heutigen Tag.
+    $('todayBtn').onclick = () => {
+      jumpToday(true);
+    };
 
     $('newEntryBtn').onclick = () => {
       openEntry();
@@ -832,8 +827,8 @@
       render();
     };
 
-    // Sobald das Von-Datum geändert wird,
-    // wird das Bis-Datum mindestens auf dasselbe Datum gesetzt.
+    // Wird das Von-Datum geändert, darf das Bis-Datum
+    // nicht vor dem neuen Startdatum liegen.
     $('entryStart').addEventListener(
       'change',
       () => {
@@ -876,6 +871,10 @@
     render();
 
     await load();
+
+    // Beim Öffnen der App sofort und ohne Scrollanimation
+    // zum heutigen Tag springen.
+    jumpToday(false);
 
     if (live) {
       state.channel = client
