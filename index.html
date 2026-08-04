@@ -2,40 +2,43 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#282b2d">
   <title>Maderegger Firmenkalender</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2.0.2">
+  <link rel="stylesheet" href="styles.css?v=2.1.0">
 </head>
 <body>
 <header class="app-header">
-  <div><p class="eyebrow">Maderegger Fördertechnik</p><h1>Firmenkalender</h1></div>
+  <div class="brand"><p class="eyebrow">Maderegger Fördertechnik</p><h1>Firmenkalender</h1></div>
   <div class="header-actions"><span id="modeBadge" class="badge">Verbinden …</span><button id="todayBtn" class="btn secondary">Heute</button><button id="newEntryBtn" class="btn primary">+ Termin</button></div>
 </header>
 <main class="layout">
   <aside class="sidebar">
-    <div class="side-card"><div class="side-title"><strong>Navigation</strong><span id="sidebarYear"></span></div><div id="monthNav" class="month-nav"></div></div>
+    <div class="side-card"><div class="side-title"><strong>Monate</strong><span id="sidebarYear"></span></div><div id="monthNav" class="month-nav"></div></div>
   </aside>
   <section class="content">
     <div class="sticky-head">
       <div class="toolbar">
-        <div class="year-controls"><button id="prevYearBtn" class="icon-btn">‹</button><select id="yearSelect"></select><button id="nextYearBtn" class="icon-btn">›</button></div>
+        <div class="year-controls"><button id="prevYearBtn" class="icon-btn" aria-label="Vorheriges Jahr">‹</button><select id="yearSelect" aria-label="Jahr"></select><button id="nextYearBtn" class="icon-btn" aria-label="Nächstes Jahr">›</button></div>
         <label class="search"><span>Suche</span><input id="searchInput" type="search" placeholder="Termin, Projektnummer, Info …"></label>
-        <label><span>Art</span><select id="categoryFilter"><option value="">Alle</option></select></label>
-        <button id="clearFiltersBtn" class="btn secondary">Filter löschen</button>
+        <label class="category"><span>Art</span><select id="categoryFilter"><option value="">Alle</option></select></label>
+        <button id="clearFiltersBtn" class="btn secondary clear-filter">Filter löschen</button>
       </div>
-      <div id="legend" class="legend"></div>
-      <div id="searchResults" class="search-results hidden"></div>
+      <div id="searchNavigator" class="search-navigator hidden" aria-live="polite"></div>
+      <details class="legend-details" open>
+        <summary>Legende</summary>
+        <div id="legend" class="legend"></div>
+      </details>
     </div>
     <section id="calendar" class="year-grid"></section>
   </section>
 </main>
 <dialog id="entryDialog" class="dialog">
 <form id="entryForm">
-  <div class="dialog-head"><div><p class="eyebrow">Firmenkalender</p><h2 id="entryDialogTitle">Termin eintragen</h2></div><button type="button" id="closeEntryDialog" class="icon-btn">×</button></div>
+  <div class="dialog-head"><div><p class="eyebrow">Firmenkalender</p><h2 id="entryDialogTitle">Termin eintragen</h2></div><button type="button" id="closeEntryDialog" class="icon-btn" aria-label="Schließen">×</button></div>
   <input id="entryId" type="hidden">
   <div class="form-grid">
     <label><span>Terminart *</span><select id="entryCategory" required></select></label>
@@ -51,6 +54,6 @@
 <template id="monthTemplate"><article class="month-card"><div class="month-head"><h2></h2><span class="month-count"></span></div><div class="weekdays"><span>KW</span><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div><div class="days"></div></article></template>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js?v=2.0.0"></script>
-<script src="app.js?v=2.0.2"></script>
+<script src="app.js?v=2.1.0"></script>
 </body>
 </html>
