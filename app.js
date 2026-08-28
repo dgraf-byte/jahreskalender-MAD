@@ -50,8 +50,6 @@
     channel: null,
     searchHits: [],
     searchIndex: 0,
-
-    // Beim ersten vollständigen Rendern zum heutigen Tag springen.
     scrollToTodayOnNextRender: true,
     smoothTodayScroll: false
   };
@@ -351,8 +349,6 @@
 
     const today = new Date();
 
-    // Nur scrollen, wenn das aktuell dargestellte Jahr
-    // auch das laufende Jahr ist.
     if (state.year !== today.getFullYear()) {
       state.scrollToTodayOnNextRender = false;
       return;
@@ -361,8 +357,6 @@
     const todayString = iso(today);
     const smooth = state.smoothTodayScroll;
 
-    // Flag sofort zurücksetzen, damit spätere Render-Vorgänge
-    // nicht wieder automatisch zum heutigen Tag springen.
     state.scrollToTodayOnNextRender = false;
     state.smoothTodayScroll = false;
 
@@ -569,9 +563,6 @@
       $('calendar').appendChild(card);
     });
 
-    // Erst nachdem alle zwölf Monate vollständig aufgebaut wurden,
-    // wird beim ersten Laden beziehungsweise nach Klick auf „Heute“
-    // zum aktuellen Tag gescrollt.
     scrollToTodayAfterRender();
   }
 
@@ -603,7 +594,6 @@
         'Supabase-Tabelle fehlt oder ist nicht freigegeben. Bitte SQL-Update prüfen.'
       );
 
-      // Kalender auch bei einem Ladefehler anzeigen.
       render();
       return;
     }
@@ -644,7 +634,6 @@
     $('entryStart').value = startDate;
     $('entryEnd').value = endDate;
 
-    // Das Bis-Datum darf nicht vor dem Von-Datum liegen.
     $('entryEnd').min = startDate;
 
     $('entryProjectNumber').value =
@@ -797,13 +786,266 @@
     render();
   }
 
+  function urlBase64ToUint8Array(base64String) {
+    const padding =
+      '='.repeat((4 - base64String.length % 4) % 4);
+
+    const base64 =
+      (base64String + padding)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = atob(base64);
+
+    return Uint8Array.from(
+      [...rawData].map(
+        char => char.charCodeAt(0)
+      )
+    );
+  }
+
+  async function getPushSubscription() {
+    if (
+      !('serviceWorker' in navigator) ||
+      !('PushManager' in window)
+    ) {
+      return null;
+    }
+
+    const registration =
+      await navigator.serviceWorker.ready;
+
+    return await registration
+      .pushManager
+      .getSubscription();
+  }
+
+  async function updatePushButton() {
+    const button = $('pushBtn');
+
+    if (!button) {
+      return;
+    }
+
+    if (
+      !('serviceWorker' in navigator) ||
+      !('PushManager' in window) ||
+      !('Notification' in window)
+    ) {
+      button.textContent =
+        'Push nicht unterstützt';
+
+      button.disabled = true;
+      return;
+    }
+
+    const subscription =
+      await getPushSubscription();
+
+    if (
+      Notification.permission === 'granted' &&
+      subscription
+    ) {
+      button.textContent =
+        'Benachrichtigungen deaktivieren';
+
+      button.dataset.active = 'true';
+    } else {
+      button.textContent =
+        'Benachrichtigungen aktivieren';
+
+      button.dataset.active = 'false';
+    }
+  }
+
+  async function enablePush() {
+    if (!live) {
+      alert(
+        'Push-Benachrichtigungen funktionieren nur im Online-Modus.'
+      );
+      return;
+    }
+
+    if (
+      !('serviceWorker' in navigator) ||
+      !('PushManager' in window) ||
+      !('Notification' in window)
+    ) {
+      alert(
+        'Dieser Browser unterstützt keine Push-Benachrichtigungen.'
+      );
+      return;
+    }
+
+    const publicKey =
+      cfg.VAPID_PUBLIC_KEY || '';
+
+    if (!publicKey) {
+      alert(
+        'VAPID_PUBLIC_KEY fehlt in der config.js.'
+      );
+      return;
+    }
+
+    const permission =
+      await Notification.requestPermission();
+
+    if (permission !== 'granted') {
+      alert(
+        'Benachrichtigungen wurden nicht erlaubt.'
+      );
+      return;
+    }
+
+    const registration =
+      await navigator.serviceWorker.ready;
+
+    let subscription =
+      await registration
+        .pushManager
+        .getSubscription();
+
+    if (!subscription) {
+      subscription =
+        await registration
+          .pushManager
+          .subscribe({
+            userVisibleOnly: true,
+            applicationServerKey:
+              urlBase64ToUint8Array(publicKey)
+          });
+    }
+
+    const json =
+      subscription.toJSON();
+
+    const payload = {
+      endpoint:
+        json.endpoint,
+
+      p256dh:
+        json.keys?.p256dh || '',
+
+      auth:
+        json.keys?.auth || '',
+
+      user_agent:
+        navigator.userAgent,
+
+      updated_at:
+        new Date().toISOString()
+    };
+
+    const { error } = await client
+      .from('push_subscriptions')
+      .upsert(payload, {
+        onConflict: 'endpoint'
+      });
+
+    if (error) {
+      console.error(error);
+
+      alert(
+        'Push-Registrierung konnte nicht gespeichert werden: ' +
+        error.message
+      );
+
+      return;
+    }
+
+    await updatePushButton();
+
+    alert(
+      'Benachrichtigungen wurden aktiviert.'
+    );
+  }
+
+  async function disablePush() {
+    if (!live) {
+      return;
+    }
+
+    const subscription =
+      await getPushSubscription();
+
+    if (!subscription) {
+      await updatePushButton();
+      return;
+    }
+
+    const endpoint =
+      subscription.endpoint;
+
+    const { error } = await client
+      .from('push_subscriptions')
+      .delete()
+      .eq('endpoint', endpoint);
+
+    if (error) {
+      console.error(error);
+
+      alert(
+        'Push-Registrierung konnte nicht gelöscht werden.'
+      );
+
+      return;
+    }
+
+    await subscription.unsubscribe();
+
+    await updatePushButton();
+
+    alert(
+      'Benachrichtigungen wurden deaktiviert.'
+    );
+  }
+
+  async function togglePush() {
+    const subscription =
+      await getPushSubscription();
+
+    if (
+      subscription &&
+      Notification.permission === 'granted'
+    ) {
+      await disablePush();
+    } else {
+      await enablePush();
+    }
+  }
+
+  async function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) {
+      await updatePushButton();
+      return;
+    }
+
+    try {
+      await navigator.serviceWorker.register('./sw.js');
+
+      await navigator.serviceWorker.ready;
+
+      await updatePushButton();
+    } catch (error) {
+      console.error(
+        'Service Worker Fehler:',
+        error
+      );
+
+      const button = $('pushBtn');
+
+      if (button) {
+        button.textContent =
+          'Push nicht verfügbar';
+      }
+    }
+  }
+
   function bind() {
     $('prevYearBtn').onclick = () => {
       state.year--;
       $('yearSelect').value = state.year;
 
-      // Bei manueller Jahresnavigation nicht automatisch
-      // zum heutigen Tag zurückspringen.
       state.scrollToTodayOnNextRender = false;
 
       render();
@@ -827,7 +1069,6 @@
       render();
     };
 
-    // Der Heute-Button scrollt weich zum aktuellen Tag.
     $('todayBtn').onclick = () => {
       jumpToday(true);
     };
@@ -836,11 +1077,15 @@
       openEntry();
     };
 
+    const pushBtn = $('pushBtn');
+
+    if (pushBtn) {
+      pushBtn.onclick = togglePush;
+    }
+
     $('searchInput').oninput = () => {
       state.searchIndex = 0;
 
-      // Suche darf nicht durch den automatischen Heute-Sprung
-      // überschrieben werden.
       state.scrollToTodayOnNextRender = false;
 
       render();
@@ -884,8 +1129,6 @@
       render();
     };
 
-    // Beim Ändern des Von-Datums wird das Bis-Datum
-    // mindestens auf dasselbe Datum gesetzt.
     $('entryStart').addEventListener(
       'change',
       () => {
@@ -926,9 +1169,8 @@
     setup();
     bind();
 
-    // load() lädt die Daten und führt danach render() aus.
-    // Der automatische Heute-Sprung erfolgt dabei direkt
-    // am Ende von render().
+    await registerServiceWorker();
+
     await load();
 
     if (live) {
