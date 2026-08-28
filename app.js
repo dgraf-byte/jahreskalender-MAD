@@ -32,17 +32,40 @@
   ];
 
   const cfg = window.APP_CONFIG || {};
-  const key = cfg.SUPABASE_PUBLISHABLE_KEY || '';
+const key = cfg.SUPABASE_PUBLISHABLE_KEY || '';
 
-  const live = Boolean(
-    cfg.SUPABASE_URL &&
-    key &&
-    window.supabase
+const hasConfig = Boolean(
+  cfg.SUPABASE_URL &&
+  key
+);
+
+const hasSupabaseLibrary = Boolean(
+  window.supabase
+);
+
+const live = Boolean(
+  hasConfig &&
+  hasSupabaseLibrary
+);
+
+const client = live
+  ? window.supabase.createClient(
+      cfg.SUPABASE_URL,
+      key
+    )
+  : null;
+
+if (!hasConfig) {
+  alert(
+    'FEHLER: config.js wurde nicht korrekt geladen. Supabase-Konfiguration fehlt.'
   );
+}
 
-  const client = live
-    ? window.supabase.createClient(cfg.SUPABASE_URL, key)
-    : null;
+if (!hasSupabaseLibrary) {
+  alert(
+    'FEHLER: Die Supabase-Bibliothek konnte nicht geladen werden.'
+  );
+}
 
   const state = {
     year: new Date().getFullYear(),
@@ -568,17 +591,14 @@
 
   async function load() {
     if (!live) {
-      state.entries = JSON.parse(
-        localStorage.getItem(
-          'mad_company_calendar'
-        ) || '[]'
-      );
+  $('modeBadge').textContent = 'OFFLINE / FEHLER';
 
-      $('modeBadge').textContent = 'Lokal';
+  state.entries = [];
 
-      render();
-      return;
-    }
+  render();
+
+  return;
+}
 
     const { data, error } = await client
       .from('company_calendar_entries')
