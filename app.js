@@ -863,19 +863,20 @@ if (!hasSupabaseLibrary) {
       await getPushSubscription();
 
     if (
-      Notification.permission === 'granted' &&
-      subscription
-    ) {
-      button.textContent =
-        'Benachrichtigungen deaktivieren';
-
-      button.dataset.active = 'true';
-    } else {
-      button.textContent =
-        'Benachrichtigungen aktivieren';
-
-      button.dataset.active = 'false';
-    }
+  Notification.permission === 'granted' &&
+  subscription
+) {
+  // Push ist bereits aktiviert:
+  // Button komplett ausblenden.
+  button.style.display = 'none';
+  button.dataset.active = 'true';
+} else {
+  // Push ist noch nicht aktiviert:
+  // Button anzeigen.
+  button.style.display = '';
+  button.textContent = 'Benachrichtigungen aktivieren';
+  button.dataset.active = 'false';
+}
   }
 
   async function enablePush() {
