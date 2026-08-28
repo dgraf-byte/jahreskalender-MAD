@@ -852,8 +852,7 @@ if (!hasSupabaseLibrary) {
       !('PushManager' in window) ||
       !('Notification' in window)
     ) {
-      button.textContent =
-        'Push nicht unterstützt';
+      button.textContent = '🔔 Aktivieren';
 
       button.disabled = true;
       return;
