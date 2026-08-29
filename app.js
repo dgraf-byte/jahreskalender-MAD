@@ -924,14 +924,16 @@ if (!hasSupabaseLibrary) {
     }
 
     const permission =
-      await Notification.requestPermission();
+  await Notification.requestPermission();
 
-    if (permission !== 'granted') {
-      alert(
-        'Benachrichtigungen wurden nicht erlaubt.'
-      );
-      return;
-    }
+alert(
+  'iOS meldet Berechtigung: ' +
+  permission
+);
+
+if (permission !== 'granted') {
+  return;
+}
 
     const registration =
       await navigator.serviceWorker.ready;
