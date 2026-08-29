@@ -935,10 +935,6 @@ if (permission !== 'granted') {
   return;
 }
 
-if (permission !== 'granted') {
-  return;
-}
-
     const registration =
       await navigator.serviceWorker.ready;
 
@@ -1108,14 +1104,24 @@ if (pushActionBtn) {
   };
 }
 
-  const permission =
-    await Notification.requestPermission();
+  const pushActionBtn = $('pushActionBtn');
 
-  alert(
-    'Direkter Test: ' +
-    permission
-  );
-};
+if (pushActionBtn) {
+  pushActionBtn.onclick = async () => {
+    const action =
+      pushActionBtn.dataset.action;
+
+    if (action === 'disable') {
+      await disablePush();
+    } else {
+      await enablePush();
+    }
+
+    await updatePushStatus();
+  };
+}
+
+$('searchInput').oninput = () => {
     $('searchInput').oninput = () => {
       state.searchIndex = 0;
 
