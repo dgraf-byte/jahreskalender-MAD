@@ -840,41 +840,58 @@ if (!hasSupabaseLibrary) {
       .getSubscription();
   }
 
-  async function updatePushButton() {
-    const button = $('pushBtn');
+  async function updatePushStatus() {
+  const status = $('pushStatus');
+  const actionBtn = $('pushActionBtn');
 
-    if (!button) {
-      return;
-    }
+  if (
+    !('serviceWorker' in navigator) ||
+    !('PushManager' in window) ||
+    !('Notification' in window)
+  ) {
+    status.textContent =
+      'Push-Benachrichtigungen werden auf diesem Gerät nicht unterstützt.';
 
-    if (
-      !('serviceWorker' in navigator) ||
-      !('PushManager' in window) ||
-      !('Notification' in window)
-    ) {
-      button.textContent = '🔔 Aktivieren';
+    actionBtn.style.display = 'none';
+    return;
+  }
 
-      button.disabled = true;
-      return;
-    }
+  const subscription =
+    await getPushSubscription();
 
-    const subscription =
-      await getPushSubscription();
+  if (
+    Notification.permission === 'granted' &&
+    subscription
+  ) {
+    status.textContent =
+      'Benachrichtigungen sind aktiviert.';
 
-    if (
-  Notification.permission === 'granted' &&
-  subscription
-) {
-  // Push ist bereits aktiviert:
-  // Button komplett ausblenden.
-  button.style.display = 'none';
-  button.dataset.active = 'true';
-} else {
-  // Push ist noch nicht aktiviert:
-  // Button anzeigen.
-  button.style.display = '';
-  button.textContent = 'Benachrichtigungen aktivieren';
-  button.dataset.active = 'false';
+    actionBtn.style.display = '';
+    actionBtn.textContent =
+      'Benachrichtigungen deaktivieren';
+
+    actionBtn.dataset.action = 'disable';
+
+    return;
+  }
+
+  if (Notification.permission === 'denied') {
+    status.textContent =
+      'Benachrichtigungen sind in den Geräteeinstellungen deaktiviert.';
+
+    actionBtn.style.display = 'none';
+
+    return;
+  }
+
+  status.textContent =
+    'Benachrichtigungen sind derzeit nicht aktiviert.';
+
+  actionBtn.style.display = '';
+  actionBtn.textContent =
+    'Benachrichtigungen aktivieren';
+
+  actionBtn.dataset.action = 'enable';
 }
   }
 
@@ -975,9 +992,6 @@ if (!hasSupabaseLibrary) {
 
     await updatePushButton();
 
-    alert(
-      'Benachrichtigungen wurden aktiviert.'
-    );
   }
 
   async function disablePush() {
@@ -1015,9 +1029,6 @@ if (!hasSupabaseLibrary) {
 
     await updatePushButton();
 
-    alert(
-      'Benachrichtigungen wurden deaktiviert.'
-    );
   }
 
   async function togglePush() {
@@ -1097,11 +1108,27 @@ if (!hasSupabaseLibrary) {
       openEntry();
     };
 
-    const pushBtn = $('pushBtn');
+    $('pushBtn').onclick = async () => {
+  await updatePushStatus();
+  $('pushDialog').showModal();
+};
 
-    if (pushBtn) {
-      pushBtn.onclick = togglePush;
-    }
+$('closePushDialog').onclick = () => {
+  $('pushDialog').close();
+};
+
+$('pushActionBtn').onclick = async () => {
+  const action =
+    $('pushActionBtn').dataset.action;
+
+  if (action === 'disable') {
+    await disablePush();
+  } else {
+    await enablePush();
+  }
+
+  await updatePushStatus();
+};
 
     $('searchInput').oninput = () => {
       state.searchIndex = 0;

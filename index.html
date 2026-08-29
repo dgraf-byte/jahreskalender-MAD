@@ -16,8 +16,14 @@
   <div class="header-actions">
   <span id="modeBadge" class="badge">Verbinden …</span>
 
-  <button id="pushBtn" class="btn secondary" type="button">
-  🔔 Aktivieren
+  <button
+  id="pushBtn"
+  class="icon-btn"
+  type="button"
+  aria-label="Benachrichtigungen"
+  title="Benachrichtigungen"
+>
+  🔔
 </button>
 
   <button id="todayBtn" class="btn secondary" type="button">
@@ -64,6 +70,37 @@
   </div>
   <div class="dialog-actions"><button type="button" id="deleteEntryBtn" class="btn danger hidden">Löschen</button><span></span><button type="button" id="cancelEntryBtn" class="btn secondary">Abbrechen</button><button class="btn primary" type="submit">Speichern</button></div>
 </form>
+</dialog>
+<dialog id="pushDialog" class="dialog">
+  <div class="dialog-head">
+    <div>
+      <p class="eyebrow">Firmenkalender</p>
+      <h2>Benachrichtigungen</h2>
+    </div>
+
+    <button
+      type="button"
+      id="closePushDialog"
+      class="icon-btn"
+      aria-label="Schließen"
+    >
+      ×
+    </button>
+  </div>
+
+  <div class="push-dialog-content">
+    <p id="pushStatus">
+      Status wird geprüft …
+    </p>
+
+    <button
+      type="button"
+      id="pushActionBtn"
+      class="btn primary"
+    >
+      Benachrichtigungen aktivieren
+    </button>
+  </div>
 </dialog>
 <template id="monthTemplate"><article class="month-card"><div class="month-head"><h2></h2><span class="month-count"></span></div><div class="weekdays"><span>KW</span><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div><div class="days"></div></article></template>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
