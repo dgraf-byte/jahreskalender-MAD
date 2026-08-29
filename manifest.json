@@ -1,6 +1,7 @@
 {
   "name": "Maderegger Firmenkalender",
   "short_name": "MAD Kalender",
+  "id": "/jahreskalender-MAD/",
   "description": "Interner Firmenkalender der Maderegger Fördertechnik GmbH",
   "start_url": "./",
   "scope": "./",
