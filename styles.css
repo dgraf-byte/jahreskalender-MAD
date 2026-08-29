@@ -2,3 +2,28 @@
 @media(max-width:1200px){.year-grid{grid-template-columns:1fr}.week-number,.day{min-height:105px}}
 @media(max-width:760px){.app-header{padding:10px 12px;align-items:center}.eyebrow{font-size:.56rem}.app-header h1{font-size:1.12rem}.header-actions{gap:7px}.header-actions .btn{padding:8px 11px;min-height:38px}.badge{display:none}.layout{display:block;padding:8px}.sidebar{position:static;margin-bottom:8px}.side-card{padding:8px 6px;overflow:hidden}.side-title{display:none}.month-nav{display:flex;overflow-x:auto;gap:5px;padding:2px 3px 5px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}.month-nav button{flex:0 0 auto;padding:7px 11px;background:#f3f5f6;white-space:nowrap}.sticky-head{top:66px;padding:10px;z-index:30}.toolbar{display:grid;grid-template-columns:auto 1fr;gap:9px}.year-controls{grid-column:1/2}.category{grid-column:2/3;min-width:0}.clear-filter{grid-column:1/3;width:100%}.search{grid-column:1/3;grid-row:2;min-width:0}.toolbar input,.toolbar select{width:100%}.legend-details summary{display:block;padding:5px 1px}.legend-details:not([open]) .legend{display:none}.legend{margin-top:8px;gap:8px 10px}.legend span{font-size:.73rem}.search-navigator{flex-wrap:wrap}.year-grid{grid-template-columns:1fr;gap:12px}.month-card{scroll-margin-top:245px}.weekdays,.days{grid-template-columns:29px repeat(7,minmax(0,1fr))}.week-number,.day{min-height:96px}.week-number{font-size:.62rem;padding-top:7px}.day{padding:4px 3px}.day-number{font-size:.67rem}.event{font-size:.6rem;padding:4px 3px}.event strong{font-size:.57rem}.events{gap:3px;margin-top:4px}.month-head{padding:11px 10px}.month-head h2{font-size:1rem}.form-grid{grid-template-columns:1fr}.span-2{grid-column:auto}.dialog form{padding:14px}.dialog-actions{flex-wrap:wrap}.dialog-actions .btn{flex:1}.dialog-actions span{display:none}}
 @media(max-width:400px){.app-header h1{font-size:1rem}.eyebrow{display:none}.header-actions .btn{padding:7px 9px;font-size:.86rem}.sticky-head{top:58px}.month-card{scroll-margin-top:235px}.week-number,.day{min-height:90px}.legend span{font-size:.68rem}}
+.push-icon-btn {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  padding: 0;
+  margin: 0;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #d7dddf;
+  border-radius: 12px;
+  background: #fff;
+
+  font-size: 22px;
+  line-height: 1;
+
+  cursor: pointer;
+  flex: 0 0 48px;
+}
+
+.push-icon-btn:active {
+  transform: scale(0.96);
+}
