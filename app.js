@@ -1091,18 +1091,22 @@ $('closePushDialog').onclick = () => {
   $('pushDialog').close();
 };
 
-$('pushActionBtn').onclick = async () => {
-  const action =
-    $('pushActionBtn').dataset.action;
+const pushActionBtn = $('pushActionBtn');
 
-  if (action === 'disable') {
-    await disablePush();
-  } else {
-    await enablePush();
-  }
+if (pushActionBtn) {
+  pushActionBtn.onclick = async () => {
+    const action =
+      pushActionBtn.dataset.action;
 
-  await updatePushStatus();
-};
+    if (action === 'disable') {
+      await disablePush();
+    } else {
+      await enablePush();
+    }
+
+    await updatePushStatus();
+  };
+}
 
   const permission =
     await Notification.requestPermission();
