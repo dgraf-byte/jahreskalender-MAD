@@ -923,11 +923,16 @@ if (!hasSupabaseLibrary) {
       return;
     }
 
-    const permission =
+    alert(
+  'Status VOR Anfrage: ' +
+  Notification.permission
+);
+
+const permission =
   await Notification.requestPermission();
 
 alert(
-  'iOS meldet Berechtigung: ' +
+  'Status NACH Anfrage: ' +
   permission
 );
 
