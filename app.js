@@ -1098,13 +1098,18 @@ $('pushActionBtn').onclick = async () => {
 
   if (action === 'disable') {
     await disablePush();
-  } else {
-    await enablePush();
+    await updatePushStatus();
+    return;
   }
 
-  await updatePushStatus();
-};
+  const permission =
+    await Notification.requestPermission();
 
+  alert(
+    'Direkter Test: ' +
+    permission
+  );
+};
     $('searchInput').oninput = () => {
       state.searchIndex = 0;
 
