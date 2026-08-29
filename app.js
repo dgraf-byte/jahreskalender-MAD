@@ -1104,25 +1104,7 @@ if (pushActionBtn) {
   };
 }
 
-  const pushActionBtn = $('pushActionBtn');
-
-if (pushActionBtn) {
-  pushActionBtn.onclick = async () => {
-    const action =
-      pushActionBtn.dataset.action;
-
-    if (action === 'disable') {
-      await disablePush();
-    } else {
-      await enablePush();
-    }
-
-    await updatePushStatus();
-  };
-}
-
 $('searchInput').oninput = () => {
-    $('searchInput').oninput = () => {
       state.searchIndex = 0;
 
       state.scrollToTodayOnNextRender = false;
