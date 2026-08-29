@@ -1195,28 +1195,28 @@ $('pushActionBtn').onclick = async () => {
   }
 
   async function init() {
-    setup();
-    bind();
+  setup();
+  bind();
 
-    await registerServiceWorker();
+  await load();
 
-    await load();
+  registerServiceWorker();
 
-    if (live) {
-      state.channel = client
-        .channel('company-calendar-live')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'company_calendar_entries'
-          },
-          load
-        )
-        .subscribe();
-    }
+  if (live) {
+    state.channel = client
+      .channel('company-calendar-live')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'company_calendar_entries'
+        },
+        load
+      )
+      .subscribe();
   }
+}
 
   init();
 })();
