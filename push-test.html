@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Push-Test</title>
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Push-Test">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background: #f3f3f3;
+    }
+
+    button {
+      font-size: 18px;
+      padding: 16px 24px;
+      border: 0;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    #status {
+      margin-top: 20px;
+      font-size: 18px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>iOS Push-Test</h1>
+
+  <button id="testBtn">
+    Benachrichtigungen testen
+  </button>
+
+  <div id="status"></div>
+
+  <script>
+    const btn =
+      document.getElementById('testBtn');
+
+    const status =
+      document.getElementById('status');
+
+    btn.onclick = async () => {
+      if (!('Notification' in window)) {
+        status.textContent =
+          'Notification API nicht vorhanden.';
+        return;
+      }
+
+      status.innerHTML =
+        'Status VOR Anfrage: <strong>' +
+        Notification.permission +
+        '</strong><br>';
+
+      try {
+        const permission =
+          await Notification.requestPermission();
+
+        status.innerHTML +=
+          'Status NACH Anfrage: <strong>' +
+          permission +
+          '</strong>';
+      } catch (error) {
+        status.innerHTML +=
+          'Fehler: ' +
+          error.message;
+      }
+    };
+  </script>
+
+</body>
+</html>
