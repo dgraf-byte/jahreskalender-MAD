@@ -1098,9 +1098,12 @@ $('pushActionBtn').onclick = async () => {
 
   if (action === 'disable') {
     await disablePush();
-    await updatePushStatus();
-    return;
+  } else {
+    await enablePush();
   }
+
+  await updatePushStatus();
+};
 
   const permission =
     await Notification.requestPermission();
