@@ -893,7 +893,6 @@ if (!hasSupabaseLibrary) {
 
   actionBtn.dataset.action = 'enable';
 }
-  }
 
   async function enablePush() {
     if (!live) {
@@ -989,9 +988,6 @@ if (!hasSupabaseLibrary) {
 
       return;
     }
-
-    await updatePushButton();
-
   }
 
   async function disablePush() {
@@ -1003,9 +999,8 @@ if (!hasSupabaseLibrary) {
       await getPushSubscription();
 
     if (!subscription) {
-      await updatePushButton();
-      return;
-    }
+  return;
+}
 
     const endpoint =
       subscription.endpoint;
@@ -1027,50 +1022,23 @@ if (!hasSupabaseLibrary) {
 
     await subscription.unsubscribe();
 
-    await updatePushButton();
-
-  }
-
-  async function togglePush() {
-    const subscription =
-      await getPushSubscription();
-
-    if (
-      subscription &&
-      Notification.permission === 'granted'
-    ) {
-      await disablePush();
-    } else {
-      await enablePush();
-    }
   }
 
   async function registerServiceWorker() {
-    if (!('serviceWorker' in navigator)) {
-      await updatePushButton();
-      return;
-    }
-
-    try {
-      await navigator.serviceWorker.register('./sw.js');
-
-      await navigator.serviceWorker.ready;
-
-      await updatePushButton();
-    } catch (error) {
-      console.error(
-        'Service Worker Fehler:',
-        error
-      );
-
-      const button = $('pushBtn');
-
-      if (button) {
-        button.textContent =
-          'Push nicht verfügbar';
-      }
-    }
+  if (!('serviceWorker' in navigator)) {
+    return;
   }
+
+  try {
+    await navigator.serviceWorker.register('./sw.js');
+    await navigator.serviceWorker.ready;
+  } catch (error) {
+    console.error(
+      'Service Worker Fehler:',
+      error
+    );
+  }
+}
 
   function bind() {
     $('prevYearBtn').onclick = () => {
