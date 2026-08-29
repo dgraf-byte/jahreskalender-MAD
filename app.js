@@ -931,10 +931,9 @@ if (!hasSupabaseLibrary) {
 const permission =
   await Notification.requestPermission();
 
-alert(
-  'Status NACH Anfrage: ' +
-  permission
-);
+if (permission !== 'granted') {
+  return;
+}
 
 if (permission !== 'granted') {
   return;
