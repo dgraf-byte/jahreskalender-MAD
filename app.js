@@ -975,21 +975,19 @@ if (permission !== 'granted') {
     };
 
     const { error } = await client
-      .from('push_subscriptions')
-      .upsert(payload, {
-        onConflict: 'endpoint'
-      });
+  .from('push_subscriptions')
+  .insert(payload);
 
-    if (error) {
-      console.error(error);
+if (error && error.code !== '23505') {
+  console.error(error);
 
-      alert(
-        'Push-Registrierung konnte nicht gespeichert werden: ' +
-        error.message
-      );
+  alert(
+    'Push-Registrierung konnte nicht gespeichert werden: ' +
+    error.message
+  );
 
-      return;
-    }
+  return;
+}
   }
 
   async function disablePush() {
